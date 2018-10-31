@@ -19,28 +19,33 @@ import org.jfree.data.xy.XYSeriesCollection;
 
 
 class Main {
-    private static XYSeriesCollection dataset = new XYSeriesCollection();
-    private static XYSeriesCollection dataset2 = new XYSeriesCollection();
-    private static XYSeries series1 = new XYSeries("pH");
-    private static XYSeries series2 = new XYSeries("dpH/dV");
+    public static void main(String[] args) {
+        Main.SetUpChartAndControllers();
+    }
+
+    private static XYSeriesCollection data_set = new XYSeriesCollection();
+    private static XYSeriesCollection secondData_set = new XYSeriesCollection();
+    private static XYSeries series = new XYSeries("pH");
+    private static XYSeries secondSeries = new XYSeries("dpH/dV");
     private static XYSeries dot = new XYSeries("Точка эквивалентности");
-    private static final Font fontLabel = new Font("Montserrat", Font.PLAIN,18);
-    private static final Font fontMarker = new Font("Montserrat", Font.PLAIN,12);
-    final static Double[] Y_LEFT_AXIS = {0.0,14.0};
+    private final static Font fontLabel = new Font("Montserrat", Font.PLAIN,18);
+    private final static Font fontMarker = new Font("Montserrat", Font.PLAIN,12);
+    private final static Double[] Y_LEFT_AXIS = {0.0,14.0};
     private final static Double[] Y_RIGHT_AXIS = {0.0,3.0};
     private final static Double[] X_AXIS = {0.0,100.0};
-    private static Main.ListeningThepH myNew = new Main.ListeningThepH();
+    private static Main.ListeningThepH listeningThe_pH = new Main.ListeningThepH();
     private static Main.AutoTitration auto = new  Main.AutoTitration();
     private static boolean forScanner;
 
     // setting SCADA
+
     private static Layers mixerOn = new Layers("src/main/resources/mixerOn.gif",291,306,70,28);
     private static Layers mixerLayer = new Layers("src/main/resources/scadaMixerOff.png",125,115,400,300);
 
-    private static Layers pump1On = new Layers("src/main/resources/Untitled-3.gif",137,16,50,50);
-    private static Layers pump2On = new Layers("src/main/resources/Untitled-3.gif",137,230,50,50);
-    private static Layers pump1 = new Layers("src/main/resources/pump1Off.png",0,0,400,300);
-    private static Layers pump2 =new Layers("src/main/resources/pump2Off.png", -6,90,400,300);
+    private static Layers pumpForTitrationOn = new Layers("src/main/resources/Untitled-3.gif",137,16,50,50);
+    private static Layers pumpForSolutionOn = new Layers("src/main/resources/Untitled-3.gif",137,230,50,50);
+    private static Layers pumpForTitration = new Layers("src/main/resources/pump1Off.png",0,0,400,300);
+    private static Layers pumpForSolution =new Layers("src/main/resources/pump2Off.png", -6,90,400,300);
 
     private static Layers waterTube = new Layers("resources/Water.png",4,72,140,150);
 
@@ -81,10 +86,10 @@ class Main {
            try {
                 String line = scanner.nextLine();
                 Double number = Double.parseDouble(line);
-                series1.add((double)i, (double)number);
-                double y = (double) series1.getY(series1.getItemCount() - 1) - (double) series1.getY(series1.getItemCount() - 2);
+                series.add((double)i, (double)number);
+                double y = (double) series.getY(series.getItemCount() - 1) - (double) series.getY(series.getItemCount() - 2);
                 if(y < 0) y = -y;
-                series2.add((double)i, y);
+                secondSeries.add((double)i, y);
             } catch (IndexOutOfBoundsException | NumberFormatException e) {
                  e.getStackTrace();
 
@@ -94,10 +99,10 @@ class Main {
         scanner.close();
         InitialClass.arduino.serialWrite('X');
         SetWindow.log.append("Данные получены\n");
-        System.out.println(series2.getMaxY());
-        double[] peak = findPeaks(dataset2, 0);
+        System.out.println(secondSeries.getMaxY());
+        double[] peak = findPeaks(secondData_set, 0);
 
-        dot.add(series1.getDataItem((int) peak[2]));
+        dot.add(series.getDataItem((int) peak[2]));
         SetWindow.result.setText(peak[0] +"ml");
     }
 
@@ -117,7 +122,7 @@ class Main {
 
                 InitialClass.arduino.serialWrite('5');
                 SetWindow.log.append("Добавление раствора...\n");
-                pump2On.setVisible(true);
+                pumpForSolutionOn.setVisible(true);
 
                 Thread.sleep(4000); //Как будет известен расход поправить время закрытия клапана для того чтоб остаточую жидкость высосало.
                 InitialClass.arduino.serialWrite('8');
@@ -126,7 +131,7 @@ class Main {
 
                 Thread.sleep(2000);
                 InitialClass.arduino.serialWrite('4');
-                pump2On.setVisible(false);
+                pumpForSolutionOn.setVisible(false);
                 SetWindow.log.append("Раствор готов\n");
 
                 /*END adding the solution*/
@@ -145,14 +150,14 @@ class Main {
                         //pump for titration
                         SetWindow.log.append(i + " Добавление титранта" + "\n");
                         InitialClass.arduino.serialWrite('3');
-                        pump1On.setVisible(true);
+                        pumpForTitrationOn.setVisible(true);
                         if (threadAlive) {
-                            new Thread(myNew).start();
+                            new Thread(listeningThe_pH).start();
                             threadAlive = false;
                         }
                         Thread.sleep(1000);
                         InitialClass.arduino.serialWrite('2');
-                        pump1On.setVisible(false);
+                        pumpForTitrationOn.setVisible(false);
                     }
                     InitialClass.arduino.serialWrite('A');
                     SetWindow.log.append("Клапан тиранта закрыт\n");
@@ -242,9 +247,9 @@ class Main {
 
         private static void setUpWindow() {
 
-            dataset.addSeries(series1);
-            dataset2.addSeries(series2);
-            dataset.addSeries(dot);
+            data_set.addSeries(series);
+            secondData_set.addSeries(secondSeries);
+            data_set.addSeries(dot);
 
             JFreeChart chart = ChartFactory.createXYLineChart(
                     "График титрования",
@@ -273,8 +278,8 @@ class Main {
             plot.setRenderer(1, renderer2);
             /*  Creating render objects  */
 
-            plot.setDataset(0, dataset);
-            plot.setDataset(1, dataset2);
+            plot.setDataset(0, data_set);
+            plot.setDataset(1, secondData_set);
 
 
             final NumberAxis axis2 = new NumberAxis("dpH/dV");
@@ -325,8 +330,8 @@ class Main {
             titrationStart.setText("Автоматическое измерение");
             titrationStart.addItemListener(ev -> {
                 if (ev.getStateChange() == ItemEvent.SELECTED) {
-                    series1.clear();
-                    series2.clear();
+                    series.clear();
+                    secondSeries.clear();
                     dot.clear();
                     titrationStart.setText("В процессе");
                     new Thread(auto).start();
@@ -362,12 +367,12 @@ class Main {
 
             handMode.addActionListener(e -> {
                 handMode.setText("Включен ручной режим !");
-                series1.clear();
-                series2.clear();
+                series.clear();
+                secondSeries.clear();
                 dot.clear();
                 titrationStart.setText("В процессе");
                 forScanner = true;
-                new Thread(myNew).start();
+                new Thread(listeningThe_pH).start();
             });
 
 
@@ -375,8 +380,8 @@ class Main {
             graph.setPreferredSize(new Dimension(500, 500));
 
 
-            pump2On.setVisible(false);
-            pump1On.setVisible(false);
+            pumpForSolutionOn.setVisible(false);
+            pumpForTitrationOn.setVisible(false);
             mixerOn.setVisible(false);
             valveTitrationOpened.setVisible(false);
             valveSolutionOpened.setVisible(false);
@@ -401,10 +406,10 @@ class Main {
             scada.add(valveWaterClosed, Integer.valueOf(15));
             scada.add(valveWaterOpened, Integer.valueOf(16));
             scada.add(mixerOn, Integer.valueOf(8));
-            scada.add(pump1On, Integer.valueOf(6));
-            scada.add(pump2On, Integer.valueOf(7));
-            scada.add(pump1, Integer.valueOf(4));
-            scada.add(pump2, Integer.valueOf(5));
+            scada.add(pumpForTitrationOn, Integer.valueOf(6));
+            scada.add(pumpForSolutionOn, Integer.valueOf(7));
+            scada.add(pumpForTitration, Integer.valueOf(4));
+            scada.add(pumpForSolution, Integer.valueOf(5));
 
 
             // setting SCADA
@@ -427,8 +432,8 @@ class Main {
             panelRightBot.setBackground(new Color(19, 28, 48));
             panelRightBot.add(mode);
             panelRightBot.add(handMode);
-            panelRightBot.add(addToggle("Помпа раствора", '5', '4', pump2On));
-            panelRightBot.add(addToggle("Помпа титранта", '3', '2', pump1On));
+            panelRightBot.add(addToggle("Помпа раствора", '5', '4', pumpForSolutionOn));
+            panelRightBot.add(addToggle("Помпа титранта", '3', '2', pumpForTitrationOn));
             panelRightBot.add(addToggle("Клапан для воды", 'D', 'C', valveWaterOpened));
             panelRightBot.add(addToggle("Клапан для раствора", '9', '8', valveSolutionOpened));
             panelRightBot.add(addToggle("Клапан для титранта", 'B', 'A', valveTitrationOpened));
