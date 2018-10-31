@@ -2,6 +2,7 @@ import java.awt.*;
 import java.awt.event.ItemEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.util.NoSuchElementException;
 import java.util.Scanner;
 import javax.swing.*;
 
@@ -81,16 +82,19 @@ class Main {
         Scanner scanner = new Scanner(InitialClass.arduino.getSerialPort().getInputStream());
         int i = 0;
         InitialClass.arduino.serialWrite('Y');
+        String line2 = scanner.nextLine();
+        System.out.println(line2);
 
         while(forScanner) {
            try {
                 String line = scanner.nextLine();
+                System.out.println(line);
                 Double number = Double.parseDouble(line);
                 series.add((double)i, (double)number);
                 double y = (double) series.getY(series.getItemCount() - 1) - (double) series.getY(series.getItemCount() - 2);
                 if(y < 0) y = -y;
                 secondSeries.add((double)i, y);
-            } catch (IndexOutOfBoundsException | NumberFormatException e) {
+            } catch (IndexOutOfBoundsException | NumberFormatException | NoSuchElementException e) {
                  e.getStackTrace();
 
              }

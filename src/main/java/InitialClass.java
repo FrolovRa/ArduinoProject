@@ -1,6 +1,5 @@
 
 import javax.swing.*;
-import arduino.Arduino;
 import com.fazecast.jSerialComm.*;
 
 public class InitialClass {
