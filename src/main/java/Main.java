@@ -1,38 +1,16 @@
+import org.jfree.data.xy.XYDataset;
+
+import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ItemEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.util.Scanner;
-import javax.swing.*;
-
-import org.jfree.chart.ChartFactory;
-import org.jfree.chart.ChartPanel;
-import org.jfree.chart.JFreeChart;
-import org.jfree.chart.axis.NumberAxis;
-import org.jfree.chart.axis.ValueAxis;
-import org.jfree.chart.plot.PlotOrientation;
-import org.jfree.chart.plot.XYPlot;
-import org.jfree.chart.renderer.xy.XYSplineRenderer;
-import org.jfree.data.xy.XYDataset;
-import org.jfree.data.xy.XYSeries;
-import org.jfree.data.xy.XYSeriesCollection;
 
 
 class Main {
-    public static void main(String[] args) {
-        Main.SetUpChartAndControllers();
-    }
-
-    private static XYSeriesCollection data_set = new XYSeriesCollection();
-    private static XYSeriesCollection secondData_set = new XYSeriesCollection();
-    private static XYSeries series = new XYSeries("pH");
-    private static XYSeries secondSeries = new XYSeries("dpH/dV");
-    private static XYSeries dot = new XYSeries("Точка эквивалентности");
-    private final static Font fontLabel = new Font("Montserrat", Font.PLAIN,18);
     private final static Font fontMarker = new Font("Montserrat", Font.PLAIN,12);
-    private final static Double[] Y_LEFT_AXIS = {0.0,14.0};
-    private final static Double[] Y_RIGHT_AXIS = {0.0,3.0};
-    private final static Double[] X_AXIS = {0.0,100.0};
+
     private static Main.ListeningThepH listeningThe_pH = new Main.ListeningThepH();
     private static Main.AutoTitration auto = new  Main.AutoTitration();
     private static boolean forScanner;
@@ -59,7 +37,7 @@ class Main {
     private static Layers valveOutClosed = new Layers("src/main/resources/valveClosed.png",412,302,40,40);
     private static Layers valveOutOpened = new Layers("src/main/resources/valveOpened.png",412,302,40,40);
 
-    private static JFrame frame = new JFrame("Titration");
+    private static JFrame frame = new JFrame("SCADA");
     private static JPanel panel = new JPanel();
     private static JPanel panelRight = new JPanel();
     private static JPanel panelRightTop = new JPanel();
@@ -69,54 +47,40 @@ class Main {
     private static JLayeredPane scada = new JLayeredPane();
 
 
-    static void SetUpChartAndControllers() {
-        setUpWindow();
-        frame.addWindowListener(new WindowAdapter() {
-            @Override
-            public void windowClosing(WindowEvent e) {
-                System.out.println("connection closed");
-                InitialClass.arduino.closeConnection();
-            }
-        });
-    }
-
-
-    static class ListeningThepH implements Runnable  {
+    private static class ListeningThepH implements Runnable  {
     public synchronized void run() {
         forScanner = true;
         System.out.println("ListeningThepH is loaded");
         log.append("Получаю данные...\n");
         Scanner scanner = new Scanner(InitialClass.arduino.getSerialPort().getInputStream());
         int i = 0;
+        new Chart();
         InitialClass.arduino.serialWrite('Y');
-
         while(forScanner) {
            try {
                 String line = scanner.nextLine();
                 Double number = Double.parseDouble(line);
-                series.add((double)i, (double)number);
-                double y = (double) series.getY(series.getItemCount() - 1) - (double) series.getY(series.getItemCount() - 2);
+                Chart.series.add((double)i, (double)number);
+                double y = (double) Chart.series.getY(Chart.series.getItemCount() - 1) - (double) Chart.series.getY(Chart.series.getItemCount() - 2);
                 if(y < 0) y = -y;
-                secondSeries.add((double)i, y);
-            } catch (IndexOutOfBoundsException | NumberFormatException e) {
+                Chart.secondSeries.add((double)i, y);
+                } catch (IndexOutOfBoundsException | NumberFormatException e) {
                  e.getStackTrace();
-
-             }
+                }
             i++;
         }
         scanner.close();
         InitialClass.arduino.serialWrite('X');
         log.append("Данные получены\n");
-        System.out.println(secondSeries.getMaxY());
-        double[] peak = findPeaks(secondData_set, 0);
-
-        dot.add(series.getDataItem((int) peak[2]));
+        System.out.println(Chart.secondSeries.getMaxY());
+        double[] peak = findPeaks(Chart.secondData_set, 0);
+        Chart.dot.add(Chart.series.getDataItem((int) peak[2]));
         result.setText(peak[0] +"ml");
     }
 
     }
 
-    static class AutoTitration implements Runnable {
+    private static class AutoTitration implements Runnable {
         @Override
         public void run() {
             try {
@@ -198,7 +162,25 @@ class Main {
         }
     }
 
-    static private JToggleButton addToggle(String name, char whenOn, char whenOff, Layers on) {
+    private static class Flushing implements Runnable {
+
+        @Override
+        public void run() {
+            try {
+                setNormalState();
+
+                pushToArduino(Do.VALVE_WATER_ON);
+                pushToArduino(Do.PUMP_FOR_SOLUTION_ON);
+                pushToArduino(Do.PUMP_FOR_TITRATION_ON);
+                pushToArduino(Do.MIXER_ON);
+                Thread.sleep(10000);
+                setNormalState();
+                log.append("Промывка закончена" + "\n");
+            } catch(InterruptedException e) {e.getStackTrace();}
+        }
+    }
+
+    private static JToggleButton addToggle(String name, char whenOn, char whenOff, Layers on) {
         JToggleButton a = new JToggleButton(name);
         a.addItemListener(ev -> {
             if (ev.getStateChange() == ItemEvent.SELECTED) {
@@ -222,7 +204,7 @@ class Main {
         return a;
     }
 
-    static private JToggleButton addToggle(String name, char whenOn, char whenOff) {
+    private static JToggleButton addToggle(String name, char whenOn, char whenOff) {
         JToggleButton a = new JToggleButton(name);
         a.addItemListener(ev -> {
             if (ev.getStateChange() == ItemEvent.SELECTED) {
@@ -242,84 +224,26 @@ class Main {
         return a;
     }
 
+    static void SetUpScadaAndControllers() {
+        /// hide animated images of scada
+        pumpForSolutionOn.setVisible(false);
+        pumpForTitrationOn.setVisible(false);
+        mixerOn.setVisible(false);
+        valveTitrationOpened.setVisible(false);
+        valveSolutionOpened.setVisible(false);
+        valveWaterOpened.setVisible(false);
+        valveOutOpened.setVisible(false);
 
-        private static void setUpWindow() {
-            data_set.addSeries(series);
-            secondData_set.addSeries(secondSeries);
-            data_set.addSeries(dot);
-
-            JFreeChart chart = ChartFactory.createXYLineChart(
-                    "График титрования",
-                    "Объем добавленного титранта",
-                    "рН",
-                    null,
-                    PlotOrientation.VERTICAL,
-                    true,
-                    true,
-                    false
-            );
-            final XYPlot plot = chart.getXYPlot();
-
-            /*  Creating render objects  */
-            XYSplineRenderer renderer1 = new XYSplineRenderer();
-            XYSplineRenderer renderer2 = new XYSplineRenderer();
-
-            renderer1.setPrecision(7);
-            renderer1.setSeriesShapesVisible(0, false);
-            renderer1.setSeriesPaint(0, Color.orange);
-            renderer1.setSeriesStroke(0, new BasicStroke(2.5f));
-            renderer2.setPrecision(7);
-            renderer2.setSeriesShapesVisible(0, false);
-            renderer2.setSeriesPaint(0, Color.WHITE);
-            renderer2.setSeriesStroke(0, new BasicStroke(2.5f));
-
-            plot.setRenderer(0, renderer1);
-            plot.setRenderer(1, renderer2);
-            /*  Creating render objects  */
-
-            plot.setDataset(0, data_set);
-            plot.setDataset(1, secondData_set);
-
-
-            final NumberAxis axis2 = new NumberAxis("dpH/dV");
-            final ValueAxis axis = plot.getDomainAxis();
-            final ValueAxis axis1 = plot.getRangeAxis();
-
-            /* start styling Label and tickLabel for axis */
-            chart.getTitle().setPaint(Color.WHITE);
-            chart.getTitle().setFont(new Font("Montserrat", Font.PLAIN, 20));
-            axis.setAutoRange(true);
-            axis.setLabelFont(fontLabel);
-            axis.setTickLabelFont(fontMarker);
-            axis.setLabelPaint(Color.WHITE);
-            axis.setTickLabelPaint(Color.WHITE);
-            axis1.setLabelFont(fontLabel);
-            axis1.setTickLabelFont(fontMarker);
-            axis1.setLabelPaint(Color.WHITE);
-            axis1.setTickLabelPaint(Color.WHITE);
-            axis2.setLabelPaint(Color.WHITE);
-            axis2.setTickLabelPaint(Color.WHITE);
-            axis2.setAutoRangeIncludesZero(false);
-            axis2.setLabelFont(fontLabel);
-            axis2.setTickLabelFont(fontMarker);
-            /* finish styling Label and tickLabel for axis */
-
-            /* set range of axis */
-            axis.setAutoRange(true);
-            axis1.setRange(Y_LEFT_AXIS[0], Y_LEFT_AXIS[1]);
-            axis2.setRange(Y_RIGHT_AXIS[0], Y_RIGHT_AXIS[1]);
-
-
-            plot.setRangeAxis(1, axis2);
-            plot.mapDatasetToRangeAxis(1, 1);
-            plot.setBackgroundPaint(new Color(19, 28, 48));
-            chart.setBackgroundPaint(new Color(19, 28, 48));
-            plot.setRangeGridlinesVisible(true);
-            plot.setRangeGridlinePaint(Color.WHITE);
-            plot.setDomainGridlinesVisible(true);
-            plot.setDomainGridlinePaint(Color.WHITE);
+            frame.addWindowListener(new WindowAdapter() {
+                @Override
+                public void windowClosing(WindowEvent e) {
+                    System.out.println("connection closed");
+                    InitialClass.arduino.closeConnection();
+                }
+            });
 
             log.setFont(fontMarker);
+            log.setRows(10);
             log.setPreferredSize(new Dimension(200, 750));
             log.setBackground(new Color(19, 28, 48));
             log.setForeground(Color.WHITE);
@@ -329,9 +253,9 @@ class Main {
             titrationStart.setText("Автоматическое измерение");
             titrationStart.addItemListener(ev -> {
                 if (ev.getStateChange() == ItemEvent.SELECTED) {
-                    series.clear();
-                    secondSeries.clear();
-                    dot.clear();
+                    Chart.series.clear();
+                    Chart.secondSeries.clear();
+                    Chart.dot.clear();
                     titrationStart.setText("В процессе");
                     new Thread(auto).start();
                     // changing place serialwrite
@@ -347,15 +271,10 @@ class Main {
             JButton washing = new JButton();
             washing.setPreferredSize(new Dimension(200, 30));
             washing.setText("Промывка");
-
             washing.addActionListener(e -> {
                 washing.setText("В процессе");
                 washing.setEnabled(false);
-                try {
-                    doWash();
-                } catch (InterruptedException ea) {
-                    ea.printStackTrace();
-                }
+                new Thread(new Flushing()).start();
                 washing.setEnabled(true);
                 washing.setText("Промывка");
             });
@@ -363,34 +282,23 @@ class Main {
             JButton handMode = new JButton();
             handMode.setPreferredSize(new Dimension(200, 30));
             handMode.setText("Начать ручной режим");
-
             handMode.addActionListener(e -> {
                 handMode.setText("Включен ручной режим !");
-                series.clear();
-                secondSeries.clear();
-                dot.clear();
+                Chart.series.clear();
+                Chart.secondSeries.clear();
+                Chart.dot.clear();
                 titrationStart.setText("В процессе");
                 forScanner = true;
                 new Thread(listeningThe_pH).start();
             });
 
 
-            ChartPanel graph = new ChartPanel(chart);
-            graph.setPreferredSize(new Dimension(500, 500));
-
-
-            pumpForSolutionOn.setVisible(false);
-            pumpForTitrationOn.setVisible(false);
-            mixerOn.setVisible(false);
-            valveTitrationOpened.setVisible(false);
-            valveSolutionOpened.setVisible(false);
-            valveWaterOpened.setVisible(false);
-            valveOutOpened.setVisible(false);
-
             JPanel flaskLevel = new JPanel();
             flaskLevel.setBounds(225, 200, 200, 200);
             flaskLevel.setBackground(Color.orange);
 
+
+        // setting SCADA
             scada.setPreferredSize(new Dimension(600, 400));
 
             scada.add(flaskLevel, Integer.valueOf(1));
@@ -410,8 +318,6 @@ class Main {
             scada.add(pumpForTitration, Integer.valueOf(4));
             scada.add(pumpForSolution, Integer.valueOf(5));
 
-
-            // setting SCADA
 
             result.setPreferredSize(new Dimension(200, 50));
             result.setText("0.00 ml");
@@ -439,18 +345,16 @@ class Main {
             panelRightBot.add(addToggle("Клапан для слива", '1', '0', valveOutOpened));
             panelRightBot.add(addToggle("Мешалка", '7', '6', mixerOn));
             panelRightBot.add(addToggle("Датчик", 'Y', 'X'));
-
             panelRightBot.add(result);
 
             panelRight.setLayout(new BorderLayout());
 //            panelRight.setPreferredSize(new Dimension(200,750));
-            panelRight.add(panelRightBot, BorderLayout.CENTER);
-            panelRight.add(scada, BorderLayout.NORTH);
+            panelRight.add(panelRightBot, BorderLayout.NORTH);
             panelRight.add(panelRightTop, BorderLayout.SOUTH);
             panelRight.setBackground(new Color(19, 28, 48));
 
             panel.setLayout(new BorderLayout());
-            panel.add(graph, BorderLayout.WEST);
+            panel.add(scada, BorderLayout.WEST);
             panel.add(panelRight, BorderLayout.CENTER);
             panel.add(log, BorderLayout.EAST);
 
@@ -464,7 +368,20 @@ class Main {
             frame.setLocationRelativeTo(null);
         }
 
+    // close all valve and make motors off
+    private static void setNormalState() {
 
+        InitialClass.arduino.serialWrite('0');
+        InitialClass.arduino.serialWrite('6');
+        InitialClass.arduino.serialWrite('2');
+        InitialClass.arduino.serialWrite('8');
+        InitialClass.arduino.serialWrite('C');
+        InitialClass.arduino.serialWrite('A');
+        InitialClass.arduino.serialWrite('4');
+
+        log.append("Клапана закрыты\nдвигатели выключены\n");
+
+        }
 
     private static double[] findPeaks(XYDataset dataset, int seriesIndex){
         double[] result = new double[3];
@@ -485,16 +402,81 @@ class Main {
         return result;
     }
 
-    private static void doWash() throws InterruptedException {
-        InitialClass.arduino.serialWrite('D');
-        InitialClass.arduino.serialWrite('3');
-        InitialClass.arduino.serialWrite('5');
-        InitialClass.arduino.serialWrite('7');
-        Thread.sleep(10000);
-        InitialClass.arduino.serialWrite('C');
-        InitialClass.arduino.serialWrite('2');
-        InitialClass.arduino.serialWrite('4');
-        InitialClass.arduino.serialWrite('6');
-        log.append("Промывка закончена" + "\n");
+    private static void pushToArduino(Do whatToDo) {
+         switch (whatToDo) {
+             case VALVE_OUT_OFF:
+                 InitialClass.arduino.serialWrite(Do.VALVE_OUT_OFF.getChar());
+                 log.append("Клапан для слива закрыт\n");
+                 valveOutOpened.setVisible(false);
+                 break;
+             case VALVE_OUT_ON:
+                 InitialClass.arduino.serialWrite(Do.VALVE_OUT_ON.getChar());
+                 log.append("Клапан для слива открыт\n");
+                 valveOutOpened.setVisible(true);
+                 break;
+             case VALVE_WATER_OFF:
+                 InitialClass.arduino.serialWrite(Do.VALVE_WATER_OFF.getChar());
+                 log.append("Клапан для воды закрыт\n");
+                 valveWaterOpened.setVisible(false);
+                 break;
+             case VALVE_WATER_ON:
+                 InitialClass.arduino.serialWrite(Do.VALVE_WATER_ON.getChar());
+                 log.append("Клапан для воды открыт\n");
+                 valveWaterOpened.setVisible(true);
+                 break;
+             case VALVE_SOLUTION_OFF:
+                 InitialClass.arduino.serialWrite(Do.VALVE_SOLUTION_OFF.getChar());
+                 log.append("Клапан для раствора закрыт\n");
+                 valveSolutionOpened.setVisible(false);
+                 break;
+             case VALVE_SOLUTION_ON:
+                 InitialClass.arduino.serialWrite(Do.VALVE_SOLUTION_ON.getChar());
+                 log.append("Клапан для раствора открыт\n");
+                 valveSolutionOpened.setVisible(true);
+                 break;
+             case VALVE_TITRATION_OFF:
+                 InitialClass.arduino.serialWrite(Do.VALVE_TITRATION_OFF.getChar());
+                 log.append("Клапан для титранта закрыт\n");
+                 valveTitrationOpened.setVisible(false);
+                 break;
+             case VALVE_TITRATION_ON:
+                 InitialClass.arduino.serialWrite(Do.VALVE_TITRATION_ON.getChar());
+                 log.append("Клапан для титранта открыт\n");
+                 valveTitrationOpened.setVisible(true);
+                 break;
+             case PUMP_FOR_SOLUTION_OFF:
+                 InitialClass.arduino.serialWrite(Do.PUMP_FOR_SOLUTION_OFF.getChar());
+                 log.append("Насос раствора выключен\n");
+                 pumpForSolutionOn.setVisible(false);
+                 break;
+             case PUMP_FOR_SOLUTION_ON:
+                 InitialClass.arduino.serialWrite(Do.PUMP_FOR_SOLUTION_ON.getChar());
+                 log.append("Насос раствора включен\n");
+                 pumpForSolutionOn.setVisible(true);
+                 break;
+             case PUMP_FOR_TITRATION_OFF:
+                 InitialClass.arduino.serialWrite(Do.PUMP_FOR_TITRATION_OFF.getChar());
+                 log.append("Насос титранта выключен\n");
+                 pumpForTitrationOn.setVisible(false);
+                 break;
+             case PUMP_FOR_TITRATION_ON:
+                 InitialClass.arduino.serialWrite(Do.PUMP_FOR_TITRATION_ON.getChar());
+                 log.append("Насос титранта включен\n");
+                 pumpForTitrationOn.setVisible(true);
+                 break;
+             case MIXER_OFF:
+                 InitialClass.arduino.serialWrite(Do.MIXER_OFF.getChar());
+                 log.append("Мешалка выключена\n");
+                 mixerOn.setVisible(false);
+                 break;
+             case MIXER_ON:
+                 InitialClass.arduino.serialWrite(Do.MIXER_ON.getChar());
+                 log.append("Мешкалка включена\n");
+                 mixerOn.setVisible(true);
+                 break;
+                 default:
+                     System.out.println("error in arguments");
+                     break;
+         }
     }
 }

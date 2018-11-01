@@ -52,7 +52,7 @@ public class InitialClass {
 					System.exit(0);
 				}
 		} while (flag);
-		SwingUtilities.invokeLater(Main::SetUpChartAndControllers);
+		SwingUtilities.invokeLater(Main::SetUpScadaAndControllers);
 		}
 }
 
