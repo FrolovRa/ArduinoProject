@@ -25,11 +25,14 @@ class Chart {
     private final static Double[] Y_RIGHT_AXIS = {0.0,3.0};
     private final static Double[] X_AXIS = {0.0,100.0};
 
-    Chart () {
-        JFrame chartFrame = new JFrame("График титрования");
+    static {
         data_set.addSeries(series);
         secondData_set.addSeries(secondSeries);
         data_set.addSeries(dot);
+    }
+
+    Chart () {
+        JFrame chartFrame = new JFrame("График титрования");
 
         JFreeChart chart = ChartFactory.createXYLineChart(
                 "График титрования",
@@ -107,11 +110,12 @@ class Chart {
 
 
         ChartPanel graph = new ChartPanel(chart);
-        graph.setPreferredSize(new Dimension(500, 500));
+        graph.setPreferredSize(new Dimension(700, 500));
 
         chartFrame.add(graph);
+//        chartFrame.setPreferredSize(new Dimension(550,350));
         chartFrame.pack();
-        chartFrame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
+        chartFrame.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
         chartFrame.setLocationRelativeTo(null);
         chartFrame.setVisible(true);
     }

@@ -25,7 +25,7 @@ class Main {
     private static Layers pumpForTitration = new Layers("src/main/resources/pump1Off.png",0,0,400,300);
     private static Layers pumpForSolution =new Layers("src/main/resources/pump2Off.png", -6,90,400,300);
 
-    private static Layers waterTube = new Layers("resources/Water.png",4,72,140,150);
+    private static Layers waterTube = new Layers("src/main/resources/Water.png",4,72,140,150);
 
     private static Layers valveTitrationClosed = new Layers("src/main/resources/valveClosed.png",75,88,40,40);
     private static Layers valveTitrationOpened = new Layers("src/main/resources/valveOpened.png",75,88,40,40);
@@ -45,17 +45,18 @@ class Main {
     private static JTextArea log = new JTextArea();
     private static JLabel result = new JLabel();
     private static JLayeredPane scada = new JLayeredPane();
+    static boolean process;
 
 
     private static class ListeningThepH implements Runnable  {
-    public synchronized void run() {
+    public void run() {
         forScanner = true;
         System.out.println("ListeningThepH is loaded");
         log.append("Получаю данные...\n");
         Scanner scanner = new Scanner(InitialClass.arduino.getSerialPort().getInputStream());
         int i = 0;
         new Chart();
-        InitialClass.arduino.serialWrite('Y');
+        pushToArduino(Do.PH_METER_ON);
         while(forScanner) {
            try {
                 String line = scanner.nextLine();
@@ -70,12 +71,13 @@ class Main {
             i++;
         }
         scanner.close();
-        InitialClass.arduino.serialWrite('X');
+        pushToArduino(Do.PH_METER_OFF);
         log.append("Данные получены\n");
         System.out.println(Chart.secondSeries.getMaxY());
         double[] peak = findPeaks(Chart.secondData_set, 0);
         Chart.dot.add(Chart.series.getDataItem((int) peak[2]));
         result.setText(peak[0] +"ml");
+        System.out.println("thread " + Thread.currentThread() +" finish");
     }
 
     }
@@ -85,40 +87,30 @@ class Main {
         public void run() {
             try {
                 boolean threadAlive = true;
+                process = true;
                 /*START adding the solution*/
+                pushToArduino(Do.VALVE_SOLUTION_ON);
 
-                InitialClass.arduino.serialWrite('9');
-                log.append("Клапан раствора открыт\n");
-                valveSolutionOpened.setVisible(true);
-
-
-                InitialClass.arduino.serialWrite('5');
-                log.append("Добавление раствора...\n");
-                pumpForSolutionOn.setVisible(true);
+                pushToArduino(Do.PUMP_FOR_SOLUTION_ON);
 
                 Thread.sleep(4000); //Как будет известен расход поправить время закрытия клапана для того чтоб остаточую жидкость высосало.
-                InitialClass.arduino.serialWrite('8');
-                valveSolutionOpened.setVisible(false);
-                log.append("Клапан раствора закрыт\n");
+
+                pushToArduino(Do.VALVE_SOLUTION_OFF);
 
                 Thread.sleep(2000);
-                InitialClass.arduino.serialWrite('4');
-                pumpForSolutionOn.setVisible(false);
+
+                pushToArduino(Do.PUMP_FOR_SOLUTION_OFF);
                 log.append("Раствор готов\n");
 
                 /*END adding the solution*/
 
                     /*START adding the titration*/
                     //motor for mixer
-                    log.append("Мешалка включена\n");
-                    InitialClass.arduino.serialWrite('7');
-                    mixerOn.setVisible(true);
+                    pushToArduino(Do.MIXER_ON);
 
-                    log.append("Клапан титранта открыт\n");
-                    InitialClass.arduino.serialWrite('B');
-                    valveTitrationOpened.setVisible(true);
+                    pushToArduino(Do.VALVE_TITRATION_ON);
 
-                    for (int i = 0; i<10; i++) {
+                    for (int i = 1; i<=10; i++) {
                         //pump for titration
                         log.append(i + " Добавление титранта" + "\n");
                         InitialClass.arduino.serialWrite('3');
@@ -131,13 +123,9 @@ class Main {
                         InitialClass.arduino.serialWrite('2');
                         pumpForTitrationOn.setVisible(false);
                     }
-                    InitialClass.arduino.serialWrite('A');
-                    log.append("Клапан тиранта закрыт\n");
-                    valveTitrationOpened.setVisible(false);
+                    pushToArduino(Do.VALVE_TITRATION_OFF);
 
-                    InitialClass.arduino.serialWrite('6');
-                    log.append("Мешалка выключена\n");
-                    mixerOn.setVisible(false);
+                    pushToArduino(Do.MIXER_OFF);
 
                     forScanner = false;
 
@@ -173,7 +161,9 @@ class Main {
                 pushToArduino(Do.PUMP_FOR_SOLUTION_ON);
                 pushToArduino(Do.PUMP_FOR_TITRATION_ON);
                 pushToArduino(Do.MIXER_ON);
-                Thread.sleep(10000);
+                Thread.sleep(8000);
+                pushToArduino(Do.VALVE_OUT_ON);
+                Thread.sleep(8000);
                 setNormalState();
                 log.append("Промывка закончена" + "\n");
             } catch(InterruptedException e) {e.getStackTrace();}
@@ -182,6 +172,12 @@ class Main {
 
     private static JToggleButton addToggle(String name, char whenOn, char whenOff, Layers on) {
         JToggleButton a = new JToggleButton(name);
+        a.addPropertyChangeListener(e -> {
+            if (process) {
+                a.setEnabled(false);
+            }
+            else a.setEnabled(true);
+        });
         a.addItemListener(ev -> {
             if (ev.getStateChange() == ItemEvent.SELECTED) {
                 a.setText(name + " вкл");
@@ -258,13 +254,12 @@ class Main {
                     Chart.dot.clear();
                     titrationStart.setText("В процессе");
                     new Thread(auto).start();
-                    // changing place serialwrite
+
 
                 } else if (ev.getStateChange() == ItemEvent.DESELECTED) {
                     forScanner = false;
-                    InitialClass.arduino.serialWrite('2');
-                    System.out.println(" off");
                     log.append("Завершение" + "\n");
+
                 }
             });
 
@@ -273,9 +268,7 @@ class Main {
             washing.setText("Промывка");
             washing.addActionListener(e -> {
                 washing.setText("В процессе");
-                washing.setEnabled(false);
                 new Thread(new Flushing()).start();
-                washing.setEnabled(true);
                 washing.setText("Промывка");
             });
 
@@ -283,13 +276,22 @@ class Main {
             handMode.setPreferredSize(new Dimension(200, 30));
             handMode.setText("Начать ручной режим");
             handMode.addActionListener(e -> {
+                if (handMode.getText().equals("Начать ручной режим")){
                 handMode.setText("Включен ручной режим !");
+                titrationStart.setEnabled(false);
+                washing.setEnabled(false);
                 Chart.series.clear();
                 Chart.secondSeries.clear();
                 Chart.dot.clear();
-                titrationStart.setText("В процессе");
                 forScanner = true;
                 new Thread(listeningThe_pH).start();
+                } else if (handMode.getText().equals("Включен ручной режим !")) {
+                    forScanner = false;
+                    titrationStart.setEnabled(true);
+                    washing.setEnabled(true);
+                    log.append("Ручной режим отключен\n");
+                    handMode.setText("Начать ручной режим");
+                }
             });
 
 
@@ -347,6 +349,7 @@ class Main {
             panelRightBot.add(addToggle("Датчик", 'Y', 'X'));
             panelRightBot.add(result);
 
+
             panelRight.setLayout(new BorderLayout());
 //            panelRight.setPreferredSize(new Dimension(200,750));
             panelRight.add(panelRightBot, BorderLayout.NORTH);
@@ -354,6 +357,7 @@ class Main {
             panelRight.setBackground(new Color(19, 28, 48));
 
             panel.setLayout(new BorderLayout());
+            panel.setBackground(new Color(19, 28, 48));
             panel.add(scada, BorderLayout.WEST);
             panel.add(panelRight, BorderLayout.CENTER);
             panel.add(log, BorderLayout.EAST);
@@ -378,6 +382,14 @@ class Main {
         InitialClass.arduino.serialWrite('C');
         InitialClass.arduino.serialWrite('A');
         InitialClass.arduino.serialWrite('4');
+        /// hide animated images of scada
+        pumpForSolutionOn.setVisible(false);
+        pumpForTitrationOn.setVisible(false);
+        mixerOn.setVisible(false);
+        valveTitrationOpened.setVisible(false);
+        valveSolutionOpened.setVisible(false);
+        valveWaterOpened.setVisible(false);
+        valveOutOpened.setVisible(false);
 
         log.append("Клапана закрыты\nдвигатели выключены\n");
 
@@ -408,6 +420,14 @@ class Main {
                  InitialClass.arduino.serialWrite(Do.VALVE_OUT_OFF.getChar());
                  log.append("Клапан для слива закрыт\n");
                  valveOutOpened.setVisible(false);
+                 break;
+             case PH_METER_OFF:
+                 InitialClass.arduino.serialWrite(Do.PH_METER_OFF.getChar());
+                 log.append("Датчик отключен\n");
+                 break;
+             case PH_METER_ON:
+                 InitialClass.arduino.serialWrite(Do.PH_METER_ON.getChar());
+                 log.append("Получение данных от датчика..\n");
                  break;
              case VALVE_OUT_ON:
                  InitialClass.arduino.serialWrite(Do.VALVE_OUT_ON.getChar());

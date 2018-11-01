@@ -13,7 +13,9 @@ public enum Do {
     VALVE_TITRATION_ON('B'),
     VALVE_TITRATION_OFF('A'),
     VALVE_WATER_ON('D'),
-    VALVE_WATER_OFF('C');
+    VALVE_WATER_OFF('C'),
+    PH_METER_ON('Y'),
+    PH_METER_OFF('X');
 
     private char c;
 
