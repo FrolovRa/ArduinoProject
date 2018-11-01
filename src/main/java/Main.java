@@ -2,7 +2,6 @@ import java.awt.*;
 import java.awt.event.ItemEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
-import java.util.NoSuchElementException;
 import java.util.Scanner;
 import javax.swing.*;
 
@@ -60,11 +59,19 @@ class Main {
     private static Layers valveOutClosed = new Layers("src/main/resources/valveClosed.png",412,302,40,40);
     private static Layers valveOutOpened = new Layers("src/main/resources/valveOpened.png",412,302,40,40);
 
+    private static JFrame frame = new JFrame("Titration");
+    private static JPanel panel = new JPanel();
+    private static JPanel panelRight = new JPanel();
+    private static JPanel panelRightTop = new JPanel();
+    private static JPanel panelRightBot = new JPanel();
+    private static JTextArea log = new JTextArea();
+    private static JLabel result = new JLabel();
+    private static JLayeredPane scada = new JLayeredPane();
 
 
     static void SetUpChartAndControllers() {
-        SetWindow.setUpWindow();
-        SetWindow.frame.addWindowListener(new WindowAdapter() {
+        setUpWindow();
+        frame.addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent e) {
                 System.out.println("connection closed");
@@ -78,23 +85,20 @@ class Main {
     public synchronized void run() {
         forScanner = true;
         System.out.println("ListeningThepH is loaded");
-        SetWindow.log.append("Получаю данные...\n");
+        log.append("Получаю данные...\n");
         Scanner scanner = new Scanner(InitialClass.arduino.getSerialPort().getInputStream());
         int i = 0;
         InitialClass.arduino.serialWrite('Y');
-        String line2 = scanner.nextLine();
-        System.out.println(line2);
 
         while(forScanner) {
            try {
                 String line = scanner.nextLine();
-                System.out.println(line);
                 Double number = Double.parseDouble(line);
                 series.add((double)i, (double)number);
                 double y = (double) series.getY(series.getItemCount() - 1) - (double) series.getY(series.getItemCount() - 2);
                 if(y < 0) y = -y;
                 secondSeries.add((double)i, y);
-            } catch (IndexOutOfBoundsException | NumberFormatException | NoSuchElementException e) {
+            } catch (IndexOutOfBoundsException | NumberFormatException e) {
                  e.getStackTrace();
 
              }
@@ -102,12 +106,12 @@ class Main {
         }
         scanner.close();
         InitialClass.arduino.serialWrite('X');
-        SetWindow.log.append("Данные получены\n");
+        log.append("Данные получены\n");
         System.out.println(secondSeries.getMaxY());
         double[] peak = findPeaks(secondData_set, 0);
 
         dot.add(series.getDataItem((int) peak[2]));
-        SetWindow.result.setText(peak[0] +"ml");
+        result.setText(peak[0] +"ml");
     }
 
     }
@@ -120,39 +124,39 @@ class Main {
                 /*START adding the solution*/
 
                 InitialClass.arduino.serialWrite('9');
-                SetWindow.log.append("Клапан раствора открыт\n");
+                log.append("Клапан раствора открыт\n");
                 valveSolutionOpened.setVisible(true);
 
 
                 InitialClass.arduino.serialWrite('5');
-                SetWindow.log.append("Добавление раствора...\n");
+                log.append("Добавление раствора...\n");
                 pumpForSolutionOn.setVisible(true);
 
                 Thread.sleep(4000); //Как будет известен расход поправить время закрытия клапана для того чтоб остаточую жидкость высосало.
                 InitialClass.arduino.serialWrite('8');
                 valveSolutionOpened.setVisible(false);
-                SetWindow.log.append("Клапан раствора закрыт\n");
+                log.append("Клапан раствора закрыт\n");
 
                 Thread.sleep(2000);
                 InitialClass.arduino.serialWrite('4');
                 pumpForSolutionOn.setVisible(false);
-                SetWindow.log.append("Раствор готов\n");
+                log.append("Раствор готов\n");
 
                 /*END adding the solution*/
 
                     /*START adding the titration*/
                     //motor for mixer
-                    SetWindow.log.append("Мешалка включена\n");
+                    log.append("Мешалка включена\n");
                     InitialClass.arduino.serialWrite('7');
                     mixerOn.setVisible(true);
 
-                    SetWindow.log.append("Клапан титранта открыт\n");
+                    log.append("Клапан титранта открыт\n");
                     InitialClass.arduino.serialWrite('B');
                     valveTitrationOpened.setVisible(true);
 
                     for (int i = 0; i<10; i++) {
                         //pump for titration
-                        SetWindow.log.append(i + " Добавление титранта" + "\n");
+                        log.append(i + " Добавление титранта" + "\n");
                         InitialClass.arduino.serialWrite('3');
                         pumpForTitrationOn.setVisible(true);
                         if (threadAlive) {
@@ -164,18 +168,18 @@ class Main {
                         pumpForTitrationOn.setVisible(false);
                     }
                     InitialClass.arduino.serialWrite('A');
-                    SetWindow.log.append("Клапан тиранта закрыт\n");
+                    log.append("Клапан тиранта закрыт\n");
                     valveTitrationOpened.setVisible(false);
 
                     InitialClass.arduino.serialWrite('6');
-                    SetWindow.log.append("Мешалка выключена\n");
+                    log.append("Мешалка выключена\n");
                     mixerOn.setVisible(false);
 
                     forScanner = false;
 
                     /*END adding the titration*/
 
-                SetWindow.log.append("Автоматическое измерение закончено\n");
+                log.append("Автоматическое измерение закончено\n");
             } catch (Exception newOne) {
                 newOne.getStackTrace();
             }
@@ -194,63 +198,52 @@ class Main {
         }
     }
 
-    private static class SetWindow {
-        static JFrame frame = new JFrame("Titration");
-        static JPanel panel = new JPanel();
-        static JPanel panelRight = new JPanel();
-        static JPanel panelRightTop = new JPanel();
-        static JPanel panelRightBot = new JPanel();
-        static JTextArea log = new JTextArea();
-        static JLabel result = new JLabel();
-        static JLayeredPane scada = new JLayeredPane();
+    static private JToggleButton addToggle(String name, char whenOn, char whenOff, Layers on) {
+        JToggleButton a = new JToggleButton(name);
+        a.addItemListener(ev -> {
+            if (ev.getStateChange() == ItemEvent.SELECTED) {
+                a.setText(name + " вкл");
+                System.out.println(name + " on");
+                InitialClass.arduino.serialWrite(whenOn);
+                log.append(name + " вкл\n");
+                on.setVisible(true);
 
 
-        static private JToggleButton addToggle(String name, char whenOn, char whenOff, Layers on) {
-            JToggleButton a = new JToggleButton(name);
-            a.addItemListener(ev -> {
-                if (ev.getStateChange() == ItemEvent.SELECTED) {
-                    a.setText(name + " вкл");
-                    System.out.println(name + " on");
-                    InitialClass.arduino.serialWrite(whenOn);
-                    log.append(name + " вкл\n");
-                    on.setVisible(true);
+            } else if (ev.getStateChange() == ItemEvent.DESELECTED) {
+                InitialClass.arduino.serialWrite(whenOff);
+                a.setText(name + " выкл");
+                System.out.println(name + " off");
+                log.append(name + " выкл\n");
+                on.setVisible(false);
 
+            }
+        });
+        a.setPreferredSize(new Dimension(200, 30));
+        return a;
+    }
 
-                } else if (ev.getStateChange() == ItemEvent.DESELECTED) {
-                    InitialClass.arduino.serialWrite(whenOff);
-                    a.setText(name + " выкл");
-                    System.out.println(name + " off");
-                    log.append(name + " выкл\n");
-                    on.setVisible(false);
+    static private JToggleButton addToggle(String name, char whenOn, char whenOff) {
+        JToggleButton a = new JToggleButton(name);
+        a.addItemListener(ev -> {
+            if (ev.getStateChange() == ItemEvent.SELECTED) {
+                a.setText(name + " вкл");
+                System.out.println(name + " on");
+                InitialClass.arduino.serialWrite(whenOn);
+                log.append(name + " вкл\n");
 
-                }
-            });
-            a.setPreferredSize(new Dimension(200, 30));
-            return a;
-        }
+            } else if (ev.getStateChange() == ItemEvent.DESELECTED) {
+                InitialClass.arduino.serialWrite(whenOff);
+                a.setText(name + " выкл");
+                System.out.println(name + " off");
+                log.append(name + " выкл\n");
+            }
+        });
+        a.setPreferredSize(new Dimension(200, 30));
+        return a;
+    }
 
-        static private JToggleButton addToggle(String name, char whenOn, char whenOff) {
-            JToggleButton a = new JToggleButton(name);
-            a.addItemListener(ev -> {
-                if (ev.getStateChange() == ItemEvent.SELECTED) {
-                    a.setText(name + " вкл");
-                    System.out.println(name + " on");
-                    InitialClass.arduino.serialWrite(whenOn);
-                    log.append(name + " вкл\n");
-
-                } else if (ev.getStateChange() == ItemEvent.DESELECTED) {
-                    InitialClass.arduino.serialWrite(whenOff);
-                    a.setText(name + " выкл");
-                    System.out.println(name + " off");
-                    log.append(name + " выкл\n");
-                }
-            });
-            a.setPreferredSize(new Dimension(200, 30));
-            return a;
-        }
 
         private static void setUpWindow() {
-
             data_set.addSeries(series);
             secondData_set.addSeries(secondSeries);
             data_set.addSeries(dot);
@@ -270,6 +263,7 @@ class Main {
             /*  Creating render objects  */
             XYSplineRenderer renderer1 = new XYSplineRenderer();
             XYSplineRenderer renderer2 = new XYSplineRenderer();
+
             renderer1.setPrecision(7);
             renderer1.setSeriesShapesVisible(0, false);
             renderer1.setSeriesPaint(0, Color.orange);
@@ -278,6 +272,7 @@ class Main {
             renderer2.setSeriesShapesVisible(0, false);
             renderer2.setSeriesPaint(0, Color.WHITE);
             renderer2.setSeriesStroke(0, new BasicStroke(2.5f));
+
             plot.setRenderer(0, renderer1);
             plot.setRenderer(1, renderer2);
             /*  Creating render objects  */
@@ -468,7 +463,7 @@ class Main {
             frame.setVisible(true);
             frame.setLocationRelativeTo(null);
         }
-    }
+
 
 
     private static double[] findPeaks(XYDataset dataset, int seriesIndex){
@@ -500,7 +495,6 @@ class Main {
         InitialClass.arduino.serialWrite('2');
         InitialClass.arduino.serialWrite('4');
         InitialClass.arduino.serialWrite('6');
-        SetWindow.log.append("Промывка закончена" + "\n");
-
+        log.append("Промывка закончена" + "\n");
     }
 }
