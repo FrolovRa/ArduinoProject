@@ -14,6 +14,7 @@ class Main {
     private static Main.ListeningThepH listeningThe_pH = new Main.ListeningThepH();
     private static Main.AutoTitration auto = new  Main.AutoTitration();
     private static boolean forScanner;
+    private static boolean process;
 
     // setting SCADA
 
@@ -45,7 +46,6 @@ class Main {
     private static JTextArea log = new JTextArea();
     private static JLabel result = new JLabel();
     private static JLayeredPane scada = new JLayeredPane();
-    static boolean process;
 
 
     private static class ListeningThepH implements Runnable  {

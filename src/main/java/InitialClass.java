@@ -5,11 +5,11 @@ import com.fazecast.jSerialComm.*;
 public class InitialClass {
 
 	static Arduino arduino = new Arduino();
-	private static Boolean flag = true;
-	private static final String PORT_NAME = "COM3";
-	private static int introTime = 60;
+	static Boolean flag = true;
+//	private static final String PORT_NAME = "COM3";
+//	private static int introTime = 60;
 
-	public static void main(String[] args) {
+	public static void main(String[] args) throws InterruptedException {
 		try {
 			// Set System L&F
 			UIManager.setLookAndFeel(
@@ -22,38 +22,35 @@ public class InitialClass {
 			Loading.setUp();
 		do {
 			SerialPort[] portNames = SerialPort.getCommPorts();
-				for (SerialPort portName : portNames) {
-					if(portName.getSystemPortName().equals(PORT_NAME)){
-						arduino.setPortDescription(String.valueOf(portName.getSystemPortName()));
-						arduino.setBaudRate(9600);
-						arduino.openConnection();
-						arduino.getSerialPort().setComPortTimeouts(SerialPort.TIMEOUT_SCANNER, 0, 0);
-					}
-				}
 			try {
-				if (arduino.openConnection()) {
-					Loading.setText("Arduino подключено!");
-					Thread.sleep(700);
-					flag = false;
-					Loading.closeUp();
+				for (SerialPort portName : portNames) {
+					arduino.setPortDescription(String.valueOf(portName.getSystemPortName()));
+					System.out.println(portName.getSystemPortName());
+					arduino.setBaudRate(9600);
+					if (arduino.openConnection()){
+						arduino.getSerialPort().setComPortTimeouts(SerialPort.TIMEOUT_SCANNER, 0, 0);
+						Thread listeningPing = new Thread(new SerialPing(portName));
+						listeningPing.start();
+						arduino.serialWrite('Q');
+						arduino.serialWrite('Q'); // 2x for sure disable ping statement in sketch
+						listeningPing.join(100);
+					}
+					if (flag) arduino.closeConnection();
 				}
 			} catch (NullPointerException e) {
 				e.getStackTrace();
-			} catch (InterruptedException e) {
-				e.printStackTrace();
+				arduino.closeConnection();
 			}
-			try {
-				Thread.sleep(500);
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}
-				introTime--;
-				if (introTime == 0) {
-					System.exit(0);
-				}
-		} while (flag);
+		} while (flag) ;
+		System.out.println("Connection is available");
+		Loading.setText("Arduino подключено!");
+		Thread.sleep(700);
+		flag = false;
+		Loading.closeUp();
+
 		SwingUtilities.invokeLater(Main::SetUpScadaAndControllers);
-		}
+
+	}
 }
 
 
