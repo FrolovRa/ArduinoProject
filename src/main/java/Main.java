@@ -238,9 +238,10 @@ class Main {
                 }
             });
 
+
             log.setFont(fontMarker);
             log.setRows(10);
-            log.setPreferredSize(new Dimension(200, 750));
+            log.setPreferredSize(new Dimension(200, 400));
             log.setBackground(new Color(19, 28, 48));
             log.setForeground(Color.WHITE);
 
@@ -303,6 +304,7 @@ class Main {
         // setting SCADA
             scada.setPreferredSize(new Dimension(600, 400));
 
+
             scada.add(flaskLevel, Integer.valueOf(1));
             scada.add(mixerLayer, Integer.valueOf(2));
             scada.add(waterTube, Integer.valueOf(3));
@@ -321,6 +323,7 @@ class Main {
             scada.add(pumpForSolution, Integer.valueOf(5));
 
 
+
             result.setPreferredSize(new Dimension(200, 50));
             result.setText("0.00 ml");
             result.setFont(new Font("Montserrat", Font.PLAIN, 32));
@@ -335,7 +338,7 @@ class Main {
             mode.setFont(fontMarker);
 
             panelRightBot.setLayout(new FlowLayout());
-            panelRightBot.setPreferredSize(new Dimension(200, 270));
+            panelRightBot.setPreferredSize(new Dimension(200, 325));
             panelRightBot.setBackground(new Color(19, 28, 48));
             panelRightBot.add(mode);
             panelRightBot.add(handMode);
@@ -351,9 +354,9 @@ class Main {
 
 
             panelRight.setLayout(new BorderLayout());
-//            panelRight.setPreferredSize(new Dimension(200,750));
-            panelRight.add(panelRightBot, BorderLayout.NORTH);
-            panelRight.add(panelRightTop, BorderLayout.SOUTH);
+            panelRight.setPreferredSize(new Dimension(200,400));
+            panelRight.add(panelRightBot, BorderLayout.CENTER);
+            panelRight.add(panelRightTop, BorderLayout.NORTH);
             panelRight.setBackground(new Color(19, 28, 48));
 
             panel.setLayout(new BorderLayout());
