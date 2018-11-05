@@ -1,13 +1,6 @@
-import com.fazecast.jSerialComm.SerialPort;
 import java.util.Scanner;
 
 class SerialPing implements Runnable {
-
-    private SerialPort portName;
-
-    SerialPing(SerialPort portName) {
-        this.portName = portName;
-    }
 
     @Override
     public void run() {

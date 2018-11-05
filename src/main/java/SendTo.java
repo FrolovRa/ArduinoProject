@@ -1,4 +1,4 @@
-public enum Do {
+public enum SendTo {
 
     VALVE_OUT_ON('1'),
     VALVE_OUT_OFF('0'),
@@ -19,7 +19,7 @@ public enum Do {
 
     private char c;
 
-    Do(char c) {
+    SendTo(char c) {
         this.c = c;
     }
     public char getChar() {

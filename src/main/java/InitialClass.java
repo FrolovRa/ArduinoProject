@@ -1,4 +1,3 @@
-
 import javax.swing.*;
 import com.fazecast.jSerialComm.*;
 
@@ -6,19 +5,9 @@ public class InitialClass {
 
 	static Arduino arduino = new Arduino();
 	static Boolean flag = true;
-//	private static final String PORT_NAME = "COM3";
-//	private static int introTime = 60;
 
 	public static void main(String[] args) throws InterruptedException {
-		try {
-			// Set System L&F
-			UIManager.setLookAndFeel(
-					UIManager.getSystemLookAndFeelClassName());
-		}
-		catch (Exception e) {
-			// handle exception
-			e.getStackTrace();
-		}
+		try {UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());} catch (Exception e) {e.getStackTrace();}
 			Loading.setUp();
 		do {
 			SerialPort[] portNames = SerialPort.getCommPorts();
@@ -29,11 +18,11 @@ public class InitialClass {
 					arduino.setBaudRate(9600);
 					if (arduino.openConnection()){
 						arduino.getSerialPort().setComPortTimeouts(SerialPort.TIMEOUT_SCANNER, 0, 0);
-						Thread listeningPing = new Thread(new SerialPing(portName));
-						listeningPing.start();
+						Thread echoArduino = new Thread(new SerialPing());
+						echoArduino.start();
 						arduino.serialWrite('Q');
 						arduino.serialWrite('Q'); // 2x for sure disable ping statement in sketch
-						listeningPing.join(100);
+						echoArduino.join(100);
 					}
 					if (flag) arduino.closeConnection();
 				}
@@ -45,7 +34,7 @@ public class InitialClass {
 		System.out.println("Connection is available");
 		Loading.setText("Arduino подключено!");
 		Thread.sleep(700);
-		flag = false;
+//		flag = false;
 		Loading.closeUp();
 
 		SwingUtilities.invokeLater(Main::SetUpScadaAndControllers);
