@@ -23,7 +23,7 @@ class Chart {
     static XYSeries dot = new XYSeries("Точка эквивалентности");
     private final static Double[] Y_LEFT_AXIS = {0.0,14.0};
     private final static Double[] Y_RIGHT_AXIS = {0.0,3.0};
-    private final static Double[] X_AXIS = {0.0,100.0};
+    private final static Double[] X_AXIS = {0.0,10.0};
 
     static {
         data_set.addSeries(series);
@@ -75,7 +75,8 @@ class Chart {
         chart.getTitle().setPaint(Color.WHITE);
         chart.getTitle().setFont(new Font("Montserrat", Font.PLAIN, 20));
 
-        axis.setAutoRange(true);
+
+
         axis.setLabelFont(fontLabel);
         axis.setTickLabelFont(fontMarker);
         axis.setLabelPaint(Color.WHITE);
@@ -94,7 +95,8 @@ class Chart {
         /* finish styling Label and tickLabel for axis */
 
         /* set range of axis */
-        axis.setAutoRange(true);
+//        axis.setAutoRange(true);
+        axis.setRange(X_AXIS[0],X_AXIS[1]);
         axis1.setRange(Y_LEFT_AXIS[0], Y_LEFT_AXIS[1]);
         axis2.setRange(Y_RIGHT_AXIS[0], Y_RIGHT_AXIS[1]);
 

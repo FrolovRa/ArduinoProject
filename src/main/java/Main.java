@@ -13,7 +13,8 @@ class Main {
     private static Main.ListeningThepH listeningThe_pH = new Main.ListeningThepH();
     private static Main.AutoTitration auto = new  Main.AutoTitration();
     private static boolean forScanner;
-    private static boolean process;
+    private static boolean inProcess;
+    private static double titrationVolume = 0.0;
 
     private static Layers mixerOn = new Layers("src/main/resources/mixerOn.gif",291,306,70,28);
     private static Layers mixerLayer = new Layers("src/main/resources/scadaMixerOff.png",125,115,400,300);
@@ -45,37 +46,25 @@ class Main {
     private static JLabel visualPH = new JLabel();
     private static JLayeredPane scada = new JLayeredPane();
 
-
+    private static String line;
     private static class ListeningThepH implements Runnable  {
     public void run() {
         forScanner = true;
         System.out.println("ListeningThepH is loaded");
         log.append("Получаю данные...\n");
         Scanner scanner = new Scanner(InitialClass.arduino.getSerialPort().getInputStream());
-        int i = 0;
-        new Chart();
         pushToArduino(SendTo.PH_METER_ON);
         while(forScanner) {
            try {
-                String line = scanner.nextLine();
-                visualPH.setText(line+ " pH");
-                Double number = Double.parseDouble(line);
-                Chart.series.add((double)i, (double)number);
-                double y = (double) Chart.series.getY(Chart.series.getItemCount() - 1) - (double) Chart.series.getY(Chart.series.getItemCount() - 2);
-                if(y < 0) y = -y;
-                Chart.secondSeries.add((double)i, y);
+                line = scanner.nextLine();
+                visualPH.setText(line + " pH");
                 } catch (IndexOutOfBoundsException | NumberFormatException e) {
                  e.getStackTrace();
                 }
-            i++;
         }
         scanner.close();
         pushToArduino(SendTo.PH_METER_OFF);
         log.append("Данные получены\n");
-        System.out.println(Chart.secondSeries.getMaxY());
-        double[] peak = findPeaks(Chart.secondData_set, 0);
-        Chart.dot.add(Chart.series.getDataItem((int) peak[2]));
-        result.setText(peak[0] +"ml");
         System.out.println("thread " + Thread.currentThread() +" finish");
     }
 
@@ -85,8 +74,7 @@ class Main {
         @Override
         public void run() {
             try {
-                boolean threadAlive = true;
-                process = true;
+                inProcess = true;
                 /*START adding the solution*/
                 pushToArduino(SendTo.VALVE_SOLUTION_ON);
 
@@ -101,32 +89,42 @@ class Main {
                 pushToArduino(SendTo.PUMP_FOR_SOLUTION_OFF);
                 log.append("Раствор готов\n");
 
-                /*END adding the solution*/
-
                     /*START adding the titration*/
-                    //motor for mixer
                     pushToArduino(SendTo.MIXER_ON);
-
                     pushToArduino(SendTo.VALVE_TITRATION_ON);
-
-                    for (int i = 1; i<=10; i++) {
+                    log.append(" Добавление титранта..." + "\n");
+                    new Chart();
+                    pushToArduino(SendTo.PH_METER_ON);
+                    new Thread(listeningThe_pH).start();
+                    while (inProcess) {
                         //pump for titration
-                        log.append(i + " Добавление титранта" + "\n");
-                        InitialClass.arduino.serialWrite('3');
                         pumpForTitrationOn.setVisible(true);
-                        if (threadAlive) {
-                            new Thread(listeningThe_pH).start();
-                            threadAlive = false;
-                        }
-                        Thread.sleep(1000);
+                        InitialClass.arduino.serialWrite('3');
+                        Thread.sleep(100);
                         InitialClass.arduino.serialWrite('2');
+                        titrationVolume += 0.06;
                         pumpForTitrationOn.setVisible(false);
+                            try {
+                                Double number = Double.parseDouble(line);
+                                Chart.series.add(titrationVolume, (double)number);
+                                double y = (double) Chart.series.getY(Chart.series.getItemCount() - 1) - (double) Chart.series.getY(Chart.series.getItemCount() - 2);
+                                if (y < 0) y = -y;
+                                Chart.secondSeries.add(titrationVolume, y);
+                            } catch (IndexOutOfBoundsException | NumberFormatException e) {
+                                e.getStackTrace();
+                            }
+                        Thread.sleep(100);
                     }
-                    pushToArduino(SendTo.VALVE_TITRATION_OFF);
+                    System.out.println(Chart.secondSeries.getMaxY());
+                    double[] peak = findPeaks(Chart.secondData_set, 0);
+                    Chart.dot.add(Chart.series.getDataItem((int) peak[2]));
+                    result.setText(peak[0] +"ml");
 
+                    pushToArduino(SendTo.VALVE_TITRATION_OFF);
                     pushToArduino(SendTo.MIXER_OFF);
 
                     forScanner = false;
+                    visualPH.setText("_.__pH");
 
                     /*END adding the titration*/
 
@@ -172,7 +170,7 @@ class Main {
     private static JToggleButton addToggle(String name, char whenOn, char whenOff, Layers on) {
         JToggleButton a = new JToggleButton(name);
         a.addPropertyChangeListener(e -> {
-            if (process) {
+            if (inProcess) {
                 a.setEnabled(false);
             }
             else a.setEnabled(true);
@@ -239,6 +237,7 @@ class Main {
             @Override
             public void windowClosing(WindowEvent e) {
                 System.out.println("connection closed");
+                setNormalState();
                 InitialClass.arduino.closeConnection();
             }
         });
@@ -272,7 +271,7 @@ class Main {
             } else if (ev.getStateChange() == ItemEvent.DESELECTED) {
                 forScanner = false;
                 log.append("Завершение" + "\n");
-
+                inProcess = false;
             }
         });
 
@@ -282,7 +281,13 @@ class Main {
 
         washing.addActionListener(e -> {
             washing.setText("В процессе");
-            new Thread(new Flushing()).start();
+            Thread flush = new Thread(new Flushing());
+            flush.start();
+            try {
+                flush.join();
+            } catch (InterruptedException e1) {
+                e1.printStackTrace();
+            }
             washing.setText("Промывка");
         });
 
@@ -306,6 +311,7 @@ class Main {
                 washing.setEnabled(true);
                 log.append("Ручной режим отключен\n");
                 handMode.setText("Начать ручной режим");
+                inProcess = false;
             }
         });
 
@@ -319,23 +325,23 @@ class Main {
          */
         scada.setPreferredSize(new Dimension(620, 400));
 
-        scada.add(flaskLevel, 1);
-        scada.add(mixerLayer, 2);
-        scada.add(waterTube, 3);
-        scada.add(pumpForTitration, 4);
-        scada.add(pumpForSolution, 5);
-        scada.add(pumpForTitrationOn, 6);
-        scada.add(pumpForSolutionOn, 7);
-        scada.add(mixerOn, 8);
-        scada.add(valveTitrationClosed, 9);
-        scada.add(valveTitrationOpened, 10);
-        scada.add(valveSolutionClosed, 11);
-        scada.add(valveSolutionOpened, 12);
-        scada.add(valveOutClosed, 13);
-        scada.add(valveOutOpened, 14);
-        scada.add(valveWaterClosed, 15);
-        scada.add(valveWaterOpened, 16);
-        scada.add(visualPH, 17);
+        scada.add(flaskLevel, Integer.valueOf(1));
+        scada.add(mixerLayer, Integer.valueOf(2));
+        scada.add(waterTube, Integer.valueOf(3));
+        scada.add(pumpForTitration, Integer.valueOf(4));
+        scada.add(pumpForSolution, Integer.valueOf(5));
+        scada.add(pumpForTitrationOn, Integer.valueOf(6));
+        scada.add(pumpForSolutionOn, Integer.valueOf(7));
+        scada.add(mixerOn, Integer.valueOf(8));
+        scada.add(valveTitrationClosed, Integer.valueOf(9));
+        scada.add(valveTitrationOpened, Integer.valueOf(10));
+        scada.add(valveSolutionClosed, Integer.valueOf(11));
+        scada.add(valveSolutionOpened, Integer.valueOf(12));
+        scada.add(valveOutClosed, Integer.valueOf(13));
+        scada.add(valveOutOpened, Integer.valueOf(14));
+        scada.add(valveWaterClosed, Integer.valueOf(15));
+        scada.add(valveWaterOpened, Integer.valueOf(16));
+        scada.add(visualPH, Integer.valueOf(17));
 
         result.setPreferredSize(new Dimension(200, 50));
         result.setText("0.00 ml");

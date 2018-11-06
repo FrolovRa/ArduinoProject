@@ -20,8 +20,6 @@ public class InitialClass {
 						arduino.getSerialPort().setComPortTimeouts(SerialPort.TIMEOUT_SCANNER, 0, 0);
 						Thread echoArduino = new Thread(new SerialPing());
 						echoArduino.start();
-						arduino.serialWrite('Q');
-						arduino.serialWrite('Q'); // 2x for sure disable ping statement in sketch
 						echoArduino.join(100);
 					}
 					if (flag) arduino.closeConnection();
@@ -31,6 +29,8 @@ public class InitialClass {
 				arduino.closeConnection();
 			}
 		} while (flag) ;
+		arduino.serialWrite('Q');
+		arduino.serialWrite('Q'); // 2x for sure disable ping statement in sketch
 		System.out.println("Connection is available");
 		Loading.setText("Arduino подключено!");
 		Thread.sleep(700);
