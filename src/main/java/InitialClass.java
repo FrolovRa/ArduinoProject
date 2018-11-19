@@ -20,7 +20,7 @@ public class InitialClass {
 						arduino.getSerialPort().setComPortTimeouts(SerialPort.TIMEOUT_SCANNER, 0, 0);
 						Thread echoArduino = new Thread(new SerialPing());
 						echoArduino.start();
-						echoArduino.join(100);
+						echoArduino.join(250);
 					}
 					if (flag) arduino.closeConnection();
 				}
@@ -34,7 +34,6 @@ public class InitialClass {
 		System.out.println("Connection is available");
 		Loading.setText("Arduino подключено!");
 		Thread.sleep(700);
-//		flag = false;
 		Loading.closeUp();
 
 		SwingUtilities.invokeLater(Main::SetUpScadaAndControllers);

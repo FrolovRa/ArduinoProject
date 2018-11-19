@@ -22,7 +22,7 @@ class Chart {
     static XYSeries secondSeries = new XYSeries("dpH/dV");
     static XYSeries dot = new XYSeries("Точка эквивалентности");
     private final static Double[] Y_LEFT_AXIS = {0.0,14.0};
-    private final static Double[] Y_RIGHT_AXIS = {0.0,3.0};
+    private final static Double[] Y_RIGHT_AXIS = {0.0,5.0};
     private final static Double[] X_AXIS = {0.0,10.0};
 
     static {

@@ -8,34 +8,25 @@ import java.util.Scanner;
 
 
 class Main {
-    private final static Font fontMarker = new Font("Montserrat", Font.PLAIN,12);
-
-    private static Main.ListeningThepH listeningThe_pH = new Main.ListeningThepH();
-    private static Main.AutoTitration auto = new  Main.AutoTitration();
-    private static boolean forScanner;
+    private static boolean scannerFlag;
     private static boolean inProcess;
     private static double titrationVolume = 0.0;
-
-    private static Layers mixerOn = new Layers("src/main/resources/mixerOn.gif",291,306,70,28);
-    private static Layers mixerLayer = new Layers("src/main/resources/scadaMixerOff.png",125,115,400,300);
-
-    private static Layers pumpForTitrationOn = new Layers("src/main/resources/Untitled-3.gif",137,16,50,50);
-    private static Layers pumpForSolutionOn = new Layers("src/main/resources/Untitled-3.gif",137,230,50,50);
-    private static Layers pumpForTitration = new Layers("src/main/resources/pump1Off.png",0,0,400,300);
-    private static Layers pumpForSolution =new Layers("src/main/resources/pump2Off.png", -6,90,400,300);
-
-    private static Layers waterTube = new Layers("src/main/resources/Water.png",4,72,140,150);
-
-    private static Layers valveTitrationClosed = new Layers("src/main/resources/valveClosed.png",75,88,40,40);
-    private static Layers valveTitrationOpened = new Layers("src/main/resources/valveOpened.png",75,88,40,40);
-    private static Layers valveSolutionClosed = new Layers("src/main/resources/valveClosed.png",75,158,40,40);
-    private static Layers valveSolutionOpened = new Layers("src/main/resources/valveOpened.png",75,158,40,40);
-    private static Layers valveWaterClosed = new Layers("src/main/resources/valveClosed.png",35,122,40,40);
-    private static Layers valveWaterOpened = new Layers("src/main/resources/valveOpened.png",35,122,40,40);
-
-    private static Layers valveOutClosed = new Layers("src/main/resources/valveClosed.png",412,302,40,40);
-    private static Layers valveOutOpened = new Layers("src/main/resources/valveOpened.png",412,302,40,40);
-
+    private static double solutionVolume = 0.0;
+    private static ScadaLayers mixerOn;
+    private static ScadaLayers mixerLayer;
+    private static ScadaLayers pumpForTitrationOn;
+    private static ScadaLayers pumpForSolutionOn;
+    private static ScadaLayers pumpForTitration;
+    private static ScadaLayers pumpForSolution;
+    private static ScadaLayers waterTube;
+    private static ScadaLayers valveTitrationClosed;
+    private static ScadaLayers valveTitrationOpened;
+    private static ScadaLayers valveSolutionClosed;
+    private static ScadaLayers valveSolutionOpened;
+    private static ScadaLayers valveWaterClosed;
+    private static ScadaLayers valveWaterOpened;
+    private static ScadaLayers valveOutClosed;
+    private static ScadaLayers valveOutOpened;
     private static JFrame frame = new JFrame("SCADA");
     private static JPanel panel = new JPanel();
     private static JPanel panelRight = new JPanel();
@@ -45,32 +36,62 @@ class Main {
     private static JLabel result = new JLabel();
     private static JLabel visualPH = new JLabel();
     private static JLayeredPane scada = new JLayeredPane();
-
+    private static JToggleButton titrationStart = new JToggleButton();
+    private static JButton handMode = new JButton();
+    private static JPanel flaskLevel = new JPanel();
     private static String line;
-    private static class ListeningThepH implements Runnable  {
-    public void run() {
-        forScanner = true;
-        System.out.println("ListeningThepH is loaded");
-        log.append("Получаю данные...\n");
-        Scanner scanner = new Scanner(InitialClass.arduino.getSerialPort().getInputStream());
-        pushToArduino(SendTo.PH_METER_ON);
-        while(forScanner) {
-           try {
-                line = scanner.nextLine();
-                visualPH.setText(line + " pH");
-                } catch (IndexOutOfBoundsException | NumberFormatException e) {
-                 e.getStackTrace();
-                }
-        }
-        scanner.close();
-        pushToArduino(SendTo.PH_METER_OFF);
-        log.append("Данные получены\n");
-        System.out.println("thread " + Thread.currentThread() +" finish");
+    private final static Font fontMarker = new Font("Montserrat", Font.PLAIN, 12);
+    private static Main.ListeningThepH listeningThe_pH = new Main.ListeningThepH();
+    private static Main.AutoTitration auto = new Main.AutoTitration();
+
+
+    static {
+        mixerOn = new ScadaLayers("src/main/resources/mixerOn.gif", 291, 306, 70, 28);
+        mixerLayer = new ScadaLayers("src/main/resources/scadaMixerOff.png", 125, 115, 400, 300);
+        pumpForTitrationOn = new ScadaLayers("src/main/resources/Untitled-3.gif", 137, 16, 50, 50);
+        pumpForSolutionOn = new ScadaLayers("src/main/resources/Untitled-3.gif", 137, 230, 50, 50);
+        pumpForTitration = new ScadaLayers("src/main/resources/pump1Off.png", 0, 0, 400, 300);
+        pumpForSolution = new ScadaLayers("src/main/resources/pump2Off.png", -6, 90, 400, 300);
+        waterTube = new ScadaLayers("src/main/resources/Water.png", 4, 72, 140, 150);
+        valveTitrationClosed = new ScadaLayers("src/main/resources/valveClosed.png", 75, 88, 40, 40);
+        valveWaterOpened = new ScadaLayers("src/main/resources/valveOpened.png", 35, 122, 40, 40);
+        valveWaterClosed = new ScadaLayers("src/main/resources/valveClosed.png", 35, 122, 40, 40);
+        valveSolutionOpened = new ScadaLayers("src/main/resources/valveOpened.png", 75, 158, 40, 40);
+        valveSolutionClosed = new ScadaLayers("src/main/resources/valveClosed.png", 75, 158, 40, 40);
+        valveTitrationOpened = new ScadaLayers("src/main/resources/valveOpened.png", 75, 88, 40, 40);
+        valveOutClosed = new ScadaLayers("src/main/resources/valveClosed.png", 412, 302, 40, 40);
+        valveOutOpened = new ScadaLayers("src/main/resources/valveOpened.png", 412, 302, 40, 40);
     }
+
+
+
+    private static class ListeningThepH implements Runnable {
+        public void run() {
+            scannerFlag = true;
+            System.out.println("ListeningThepH is loaded");
+            log.append("Получаю данные...\n");
+            Scanner scanner = new Scanner(InitialClass.arduino.getSerialPort().getInputStream());
+            pushToArduino(SendTo.PH_METER_ON);
+            while (scannerFlag) {
+                try {
+                    if (scanner.hasNextLine()) {
+                        line = scanner.nextLine();
+                        visualPH.setText(line + " pH");
+                    }
+                } catch (IndexOutOfBoundsException | NumberFormatException e) {
+                    e.getStackTrace();
+                }
+            }
+            scanner.close();
+            pushToArduino(SendTo.PH_METER_OFF);
+            log.append("Данные получены\n");
+            System.out.println("thread " + Thread.currentThread() + " finish");
+        }
 
     }
 
     private static class AutoTitration implements Runnable {
+        private double pH_limit = 1.3;
         @Override
         public void run() {
             try {
@@ -80,54 +101,57 @@ class Main {
 
                 pushToArduino(SendTo.PUMP_FOR_SOLUTION_ON);
 
-                Thread.sleep(4000); //Как будет известен расход поправить время закрытия клапана для того чтоб остаточую жидкость высосало.
+                while (solutionVolume <= 125.0) {
+                    Thread.sleep(1000);
+                    solutionVolume += 10.5;
+                }
 
                 pushToArduino(SendTo.VALVE_SOLUTION_OFF);
-
-                Thread.sleep(2000);
-
                 pushToArduino(SendTo.PUMP_FOR_SOLUTION_OFF);
                 log.append("Раствор готов\n");
 
-                    /*START adding the titration*/
-                    pushToArduino(SendTo.MIXER_ON);
-                    pushToArduino(SendTo.VALVE_TITRATION_ON);
-                    log.append(" Добавление титранта..." + "\n");
-                    new Chart();
-                    pushToArduino(SendTo.PH_METER_ON);
-                    new Thread(listeningThe_pH).start();
-                    while (inProcess) {
-                        //pump for titration
-                        pumpForTitrationOn.setVisible(true);
-                        InitialClass.arduino.serialWrite('3');
-                        Thread.sleep(100);
-                        InitialClass.arduino.serialWrite('2');
-                        titrationVolume += 0.06;
-                        pumpForTitrationOn.setVisible(false);
-                            try {
-                                Double number = Double.parseDouble(line);
-                                Chart.series.add(titrationVolume, (double)number);
-                                double y = (double) Chart.series.getY(Chart.series.getItemCount() - 1) - (double) Chart.series.getY(Chart.series.getItemCount() - 2);
-                                if (y < 0) y = -y;
-                                Chart.secondSeries.add(titrationVolume, y);
-                            } catch (IndexOutOfBoundsException | NumberFormatException e) {
-                                e.getStackTrace();
-                            }
-                        Thread.sleep(100);
+                /*START adding the titration*/
+                pushToArduino(SendTo.MIXER_ON);
+                pushToArduino(SendTo.VALVE_TITRATION_ON);
+                log.append(" Добавление титранта..." + "\n");
+                new Chart();
+                pushToArduino(SendTo.PH_METER_ON);
+                new Thread(listeningThe_pH).start();
+                while (inProcess) {
+                    //pump for titration
+                    pumpForTitrationOn.setVisible(true);
+                    InitialClass.arduino.serialWrite('3');
+                    titrationVolume += 0.06;
+                    solutionVolume += 0.06;
+                                              /*
+                        Time for sensor to set value
+                        */
+                    Thread.sleep(1000);
+                    try {
+                        Double number = Double.parseDouble(line);
+                        Chart.series.add(titrationVolume, (double) number);
+                        double y = (double) Chart.series.getY(Chart.series.getItemCount() - 1) - (double) Chart.series.getY(Chart.series.getItemCount() - 2);
+                        if (y < 0) y = -y;
+                        if (y > pH_limit) inProcess = false;
+                        Chart.secondSeries.add(titrationVolume, y);
+                    } catch (IndexOutOfBoundsException | NumberFormatException e) {
+                        e.getStackTrace();
                     }
-                    System.out.println(Chart.secondSeries.getMaxY());
-                    double[] peak = findPeaks(Chart.secondData_set, 0);
-                    Chart.dot.add(Chart.series.getDataItem((int) peak[2]));
-                    result.setText(peak[0] +"ml");
 
-                    pushToArduino(SendTo.VALVE_TITRATION_OFF);
-                    pushToArduino(SendTo.MIXER_OFF);
+                }
+                System.out.println(Chart.secondSeries.getMaxY());
+                double[] peak = findPeaks(Chart.secondData_set, 0);
+                Chart.dot.add(Chart.series.getDataItem((int) peak[2]));
+                result.setText(peak[0] + "ml");
 
-                    forScanner = false;
-                    visualPH.setText("_.__pH");
+                pushToArduino(SendTo.MIXER_OFF);
 
-                    /*END adding the titration*/
+                scannerFlag = false;
+                visualPH.setText("_.__pH");
 
+                /*END adding the titration*/
+                titrationVolume = 0.0;
+                titrationStart.doClick();
                 log.append("Автоматическое измерение закончено\n");
             } catch (Exception newOne) {
                 newOne.getStackTrace();
@@ -136,13 +160,13 @@ class Main {
         }
     }
 
-    private static class Layers extends JLabel {
-        private Layers(String filename, int x, int y, int width, int height) {
+    private static class ScadaLayers extends JLabel {
+        private ScadaLayers(String filename, int x, int y, int width, int height) {
             Image image = Toolkit.getDefaultToolkit().createImage(filename);
             ImageIcon gif = new ImageIcon(image);
             gif.setImageObserver(this);
             setIcon(gif);
-            setBounds(x,y,width,height);
+            setBounds(x, y, width, height);
             setVisible(true);
         }
     }
@@ -154,27 +178,34 @@ class Main {
             try {
                 setNormalState();
 
-                pushToArduino(SendTo.VALVE_WATER_ON);
-                pushToArduino(SendTo.PUMP_FOR_SOLUTION_ON);
-                pushToArduino(SendTo.PUMP_FOR_TITRATION_ON);
-                pushToArduino(SendTo.MIXER_ON);
+                InitialClass.arduino.serialWrite("D9B7");
+                valveWaterOpened.setVisible(true);
+                pumpForSolutionOn.setVisible(true);
+                pumpForTitrationOn.setVisible(true);
+                mixerOn.setVisible(true);
+
                 Thread.sleep(8000);
-                pushToArduino(SendTo.VALVE_OUT_ON);
+
+                valveWaterOpened.setVisible(false);
+                InitialClass.arduino.serialWrite("C1");
+
                 Thread.sleep(8000);
+
                 setNormalState();
                 log.append("Промывка закончена" + "\n");
-            } catch(InterruptedException e) {e.getStackTrace();}
+            } catch (InterruptedException e) {
+                e.getStackTrace();
+            }
         }
     }
 
-    private static JToggleButton addToggle(String name, char whenOn, char whenOff, Layers on) {
+    private static JToggleButton addToggle(String name, char whenOn, char whenOff, ScadaLayers on) {
         JToggleButton a = new JToggleButton(name);
-        a.addPropertyChangeListener(e -> {
-            if (inProcess) {
-                a.setEnabled(false);
-            }
-            else a.setEnabled(true);
-        });
+//        a.addContainerListener(e -> {
+//            if (handMode.getText().equals("Включен ручной режим !")) {
+//                a.setEnabled(true);
+//            } else a.setEnabled(false);
+//        });
         a.addItemListener(ev -> {
             if (ev.getStateChange() == ItemEvent.SELECTED) {
                 a.setText(name + " вкл");
@@ -221,7 +252,22 @@ class Main {
         SetUpScadaAndControllers();
     }
 
+    private static int y_FlaskLevel (double solutionVolume){
+        return (int) solutionVolume * (200 - 350) / 400 + 350;
+    }
+
     static void SetUpScadaAndControllers() {
+        new Thread(() -> {
+            while(true) {
+                flaskLevel.setBounds(225, y_FlaskLevel(solutionVolume), 200, 200);
+                flaskLevel.revalidate();
+                try {
+                    Thread.sleep(250);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        }).start();
         /*
          hide animated images of scada
           */
@@ -242,7 +288,6 @@ class Main {
             }
         });
 
-
         log.setFont(fontMarker);
         log.setRows(10);
         log.setPreferredSize(new Dimension(200, 400));
@@ -256,7 +301,6 @@ class Main {
         visualPH.setFont(new Font("Montserrat", Font.PLAIN, 32));
 
 
-        JToggleButton titrationStart = new JToggleButton();
         titrationStart.setPreferredSize(new Dimension(200, 30));
         titrationStart.setText("Автоматическое измерение");
 
@@ -269,8 +313,8 @@ class Main {
                 new Thread(auto).start();
 
             } else if (ev.getStateChange() == ItemEvent.DESELECTED) {
-                forScanner = false;
                 log.append("Завершение" + "\n");
+                titrationStart.setText("Автоматическое измерение");
                 inProcess = false;
             }
         });
@@ -279,19 +323,9 @@ class Main {
         washing.setPreferredSize(new Dimension(200, 30));
         washing.setText("Промывка");
 
-        washing.addActionListener(e -> {
-            washing.setText("В процессе");
-            Thread flush = new Thread(new Flushing());
-            flush.start();
-            try {
-                flush.join();
-            } catch (InterruptedException e1) {
-                e1.printStackTrace();
-            }
-            washing.setText("Промывка");
-        });
+        washing.addActionListener(e -> new Thread(new Flushing()).start());
 
-        JButton handMode = new JButton();
+
         handMode.setPreferredSize(new Dimension(200, 30));
         handMode.setText("Начать ручной режим");
 
@@ -303,10 +337,11 @@ class Main {
                 Chart.series.clear();
                 Chart.secondSeries.clear();
                 Chart.dot.clear();
-                forScanner = true;
+                scannerFlag = true;
+                new Chart();
                 new Thread(listeningThe_pH).start();
             } else if (handMode.getText().equals("Включен ручной режим !")) {
-                forScanner = false;
+                scannerFlag = false;
                 titrationStart.setEnabled(true);
                 washing.setEnabled(true);
                 log.append("Ручной режим отключен\n");
@@ -316,12 +351,12 @@ class Main {
         });
 
 
-        JPanel flaskLevel = new JPanel();
-        flaskLevel.setBounds(225, 200, 200, 200);
+
+        flaskLevel.setBounds(225, 400, 200, 200);
         flaskLevel.setBackground(Color.orange);
 
         /*
-        *Setting SCADA layered window
+         *Setting SCADA layered window
          */
         scada.setPreferredSize(new Dimension(620, 400));
 
@@ -398,13 +433,7 @@ class Main {
      close all valve and make motors off
       */
     private static void setNormalState() {
-        InitialClass.arduino.serialWrite('0');
-        InitialClass.arduino.serialWrite('6');
-        InitialClass.arduino.serialWrite('2');
-        InitialClass.arduino.serialWrite('8');
-        InitialClass.arduino.serialWrite('C');
-        InitialClass.arduino.serialWrite('A');
-        InitialClass.arduino.serialWrite('4');
+        InitialClass.arduino.serialWrite("0628CA4");
         /// hide animated images of scada
         pumpForSolutionOn.setVisible(false);
         pumpForTitrationOn.setVisible(false);
@@ -416,17 +445,17 @@ class Main {
 
         log.append("Клапана закрыты\nдвигатели выключены\n");
 
-        }
+    }
 
-    private static double[] findPeaks(XYDataset dataset, int seriesIndex){
+    private static double[] findPeaks(XYDataset dataset, int seriesIndex) {
         double[] result = new double[3];
         double maxY = Double.NEGATIVE_INFINITY;
 
-        for(int i = 0; i < dataset.getItemCount(seriesIndex); i++){
+        for (int i = 0; i < dataset.getItemCount(seriesIndex); i++) {
             double x = dataset.getXValue(seriesIndex, i);
             double y = dataset.getYValue(seriesIndex, i);
-            if(!Double.isNaN(x) && !Double.isNaN(y)){
-                if(y > maxY) {
+            if (!Double.isNaN(x) && !Double.isNaN(y)) {
+                if (y > maxY) {
                     maxY = y;
                     result[0] = x;
                     result[1] = y;
@@ -438,88 +467,88 @@ class Main {
     }
 
     private static void pushToArduino(SendTo whatToDo) {
-         switch (whatToDo) {
-             case VALVE_OUT_OFF:
-                 InitialClass.arduino.serialWrite(SendTo.VALVE_OUT_OFF.getChar());
-                 log.append("Клапан для слива закрыт\n");
-                 valveOutOpened.setVisible(false);
-                 break;
-             case PH_METER_OFF:
-                 InitialClass.arduino.serialWrite(SendTo.PH_METER_OFF.getChar());
-                 log.append("Датчик отключен\n");
-                 break;
-             case PH_METER_ON:
-                 InitialClass.arduino.serialWrite(SendTo.PH_METER_ON.getChar());
-                 log.append("Получение данных от датчика..\n");
-                 break;
-             case VALVE_OUT_ON:
-                 InitialClass.arduino.serialWrite(SendTo.VALVE_OUT_ON.getChar());
-                 log.append("Клапан для слива открыт\n");
-                 valveOutOpened.setVisible(true);
-                 break;
-             case VALVE_WATER_OFF:
-                 InitialClass.arduino.serialWrite(SendTo.VALVE_WATER_OFF.getChar());
-                 log.append("Клапан для воды закрыт\n");
-                 valveWaterOpened.setVisible(false);
-                 break;
-             case VALVE_WATER_ON:
-                 InitialClass.arduino.serialWrite(SendTo.VALVE_WATER_ON.getChar());
-                 log.append("Клапан для воды открыт\n");
-                 valveWaterOpened.setVisible(true);
-                 break;
-             case VALVE_SOLUTION_OFF:
-                 InitialClass.arduino.serialWrite(SendTo.VALVE_SOLUTION_OFF.getChar());
-                 log.append("Клапан для раствора закрыт\n");
-                 valveSolutionOpened.setVisible(false);
-                 break;
-             case VALVE_SOLUTION_ON:
-                 InitialClass.arduino.serialWrite(SendTo.VALVE_SOLUTION_ON.getChar());
-                 log.append("Клапан для раствора открыт\n");
-                 valveSolutionOpened.setVisible(true);
-                 break;
-             case VALVE_TITRATION_OFF:
-                 InitialClass.arduino.serialWrite(SendTo.VALVE_TITRATION_OFF.getChar());
-                 log.append("Клапан для титранта закрыт\n");
-                 valveTitrationOpened.setVisible(false);
-                 break;
-             case VALVE_TITRATION_ON:
-                 InitialClass.arduino.serialWrite(SendTo.VALVE_TITRATION_ON.getChar());
-                 log.append("Клапан для титранта открыт\n");
-                 valveTitrationOpened.setVisible(true);
-                 break;
-             case PUMP_FOR_SOLUTION_OFF:
-                 InitialClass.arduino.serialWrite(SendTo.PUMP_FOR_SOLUTION_OFF.getChar());
-                 log.append("Насос раствора выключен\n");
-                 pumpForSolutionOn.setVisible(false);
-                 break;
-             case PUMP_FOR_SOLUTION_ON:
-                 InitialClass.arduino.serialWrite(SendTo.PUMP_FOR_SOLUTION_ON.getChar());
-                 log.append("Насос раствора включен\n");
-                 pumpForSolutionOn.setVisible(true);
-                 break;
-             case PUMP_FOR_TITRATION_OFF:
-                 InitialClass.arduino.serialWrite(SendTo.PUMP_FOR_TITRATION_OFF.getChar());
-                 log.append("Насос титранта выключен\n");
-                 pumpForTitrationOn.setVisible(false);
-                 break;
-             case PUMP_FOR_TITRATION_ON:
-                 InitialClass.arduino.serialWrite(SendTo.PUMP_FOR_TITRATION_ON.getChar());
-                 log.append("Насос титранта включен\n");
-                 pumpForTitrationOn.setVisible(true);
-                 break;
-             case MIXER_OFF:
-                 InitialClass.arduino.serialWrite(SendTo.MIXER_OFF.getChar());
-                 log.append("Мешалка выключена\n");
-                 mixerOn.setVisible(false);
-                 break;
-             case MIXER_ON:
-                 InitialClass.arduino.serialWrite(SendTo.MIXER_ON.getChar());
-                 log.append("Мешкалка включена\n");
-                 mixerOn.setVisible(true);
-                 break;
-                 default:
-                     System.out.println("error in arguments");
-                     break;
-         }
+        switch (whatToDo) {
+            case VALVE_OUT_OFF:
+                InitialClass.arduino.serialWrite(SendTo.VALVE_OUT_OFF.getChar());
+                log.append("Клапан для слива закрыт\n");
+                valveOutOpened.setVisible(false);
+                break;
+            case PH_METER_OFF:
+                InitialClass.arduino.serialWrite(SendTo.PH_METER_OFF.getChar());
+                log.append("Датчик отключен\n");
+                break;
+            case PH_METER_ON:
+                InitialClass.arduino.serialWrite(SendTo.PH_METER_ON.getChar());
+                log.append("Получение данных от датчика..\n");
+                break;
+            case VALVE_OUT_ON:
+                InitialClass.arduino.serialWrite(SendTo.VALVE_OUT_ON.getChar());
+                log.append("Клапан для слива открыт\n");
+                valveOutOpened.setVisible(true);
+                break;
+            case VALVE_WATER_OFF:
+                InitialClass.arduino.serialWrite(SendTo.VALVE_WATER_OFF.getChar());
+                log.append("Клапан для воды закрыт\n");
+                valveWaterOpened.setVisible(false);
+                break;
+            case VALVE_WATER_ON:
+                InitialClass.arduino.serialWrite(SendTo.VALVE_WATER_ON.getChar());
+                log.append("Клапан для воды открыт\n");
+                valveWaterOpened.setVisible(true);
+                break;
+            case VALVE_SOLUTION_OFF:
+                InitialClass.arduino.serialWrite(SendTo.VALVE_SOLUTION_OFF.getChar());
+                log.append("Клапан для раствора закрыт\n");
+                valveSolutionOpened.setVisible(false);
+                break;
+            case VALVE_SOLUTION_ON:
+                InitialClass.arduino.serialWrite(SendTo.VALVE_SOLUTION_ON.getChar());
+                log.append("Клапан для раствора открыт\n");
+                valveSolutionOpened.setVisible(true);
+                break;
+            case VALVE_TITRATION_OFF:
+                InitialClass.arduino.serialWrite(SendTo.VALVE_TITRATION_OFF.getChar());
+                log.append("Клапан для титранта закрыт\n");
+                valveTitrationOpened.setVisible(false);
+                break;
+            case VALVE_TITRATION_ON:
+                InitialClass.arduino.serialWrite(SendTo.VALVE_TITRATION_ON.getChar());
+                log.append("Клапан для титранта открыт\n");
+                valveTitrationOpened.setVisible(true);
+                break;
+            case PUMP_FOR_SOLUTION_OFF:
+                InitialClass.arduino.serialWrite(SendTo.PUMP_FOR_SOLUTION_OFF.getChar());
+                log.append("Насос раствора выключен\n");
+                pumpForSolutionOn.setVisible(false);
+                break;
+            case PUMP_FOR_SOLUTION_ON:
+                InitialClass.arduino.serialWrite(SendTo.PUMP_FOR_SOLUTION_ON.getChar());
+                log.append("Насос раствора включен\n");
+                pumpForSolutionOn.setVisible(true);
+                break;
+            case PUMP_FOR_TITRATION_OFF:
+                InitialClass.arduino.serialWrite(SendTo.PUMP_FOR_TITRATION_OFF.getChar());
+                log.append("Насос титранта выключен\n");
+                pumpForTitrationOn.setVisible(false);
+                break;
+            case PUMP_FOR_TITRATION_ON:
+                InitialClass.arduino.serialWrite(SendTo.PUMP_FOR_TITRATION_ON.getChar());
+                log.append("Насос титранта включен\n");
+                pumpForTitrationOn.setVisible(true);
+                break;
+            case MIXER_OFF:
+                InitialClass.arduino.serialWrite(SendTo.MIXER_OFF.getChar());
+                log.append("Мешалка выключена\n");
+                mixerOn.setVisible(false);
+                break;
+            case MIXER_ON:
+                InitialClass.arduino.serialWrite(SendTo.MIXER_ON.getChar());
+                log.append("Мешкалка включена\n");
+                mixerOn.setVisible(true);
+                break;
+            default:
+                System.out.println("error in arguments");
+                break;
+        }
     }
 }
