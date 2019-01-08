@@ -26,8 +26,6 @@ class Loading {
         jLabel.setAlignmentX(0.35f);
         jLabel.setAlignmentY(0.71f);
 
-
-
         loadingFrame.add(inFrame);
         loadingFrame.setSize(480, 260);
         loadingFrame.setUndecorated(true);

@@ -12,26 +12,27 @@ class Main {
     private static boolean inProcess;
     private static double titrationVolume = 0.0;
     private static double solutionVolume = 0.0;
-    private static ScadaLayers mixerOn;
-    private static ScadaLayers mixerLayer;
-    private static ScadaLayers pumpForTitrationOn;
-    private static ScadaLayers pumpForSolutionOn;
-    private static ScadaLayers pumpForTitration;
-    private static ScadaLayers pumpForSolution;
-    private static ScadaLayers waterTube;
-    private static ScadaLayers valveTitrationClosed;
-    private static ScadaLayers valveTitrationOpened;
-    private static ScadaLayers valveSolutionClosed;
-    private static ScadaLayers valveSolutionOpened;
-    private static ScadaLayers valveWaterClosed;
-    private static ScadaLayers valveWaterOpened;
-    private static ScadaLayers valveOutClosed;
-    private static ScadaLayers valveOutOpened;
+    private final static ScadaLayers mixerOn;
+    private final static ScadaLayers mixerLayer;
+    private final static ScadaLayers pumpForTitrationOn;
+    private final static ScadaLayers pumpForSolutionOn;
+    private final static ScadaLayers pumpForTitration;
+    private final static ScadaLayers pumpForSolution;
+    private final static ScadaLayers waterTube;
+    private final static ScadaLayers valveTitrationClosed;
+    private final static ScadaLayers valveTitrationOpened;
+    private final static ScadaLayers valveSolutionClosed;
+    private final static ScadaLayers valveSolutionOpened;
+    private final static ScadaLayers valveWaterClosed;
+    private final static ScadaLayers valveWaterOpened;
+    private final static ScadaLayers valveOutClosed;
+    private final static ScadaLayers valveOutOpened;
     private static JFrame frame = new JFrame("SCADA");
     private static JPanel panel = new JPanel();
     private static JPanel panelRight = new JPanel();
     private static JPanel panelRightTop = new JPanel();
     private static JPanel panelRightBot = new JPanel();
+    private static JPanel panelLeft = new JPanel();
     private static JTextArea log = new JTextArea();
     private static JLabel result = new JLabel();
     private static JLabel visualPH = new JLabel();
@@ -41,8 +42,8 @@ class Main {
     private static JPanel flaskLevel = new JPanel();
     private static String line;
     private final static Font fontMarker = new Font("Montserrat", Font.PLAIN, 12);
-    private static Main.ListeningThepH listeningThe_pH = new Main.ListeningThepH();
-    private static Main.AutoTitration auto = new Main.AutoTitration();
+    private static ListeningThePh listeningThe_pH = new ListeningThePh();
+    private static AutoTitration auto = new AutoTitration();
 
 
     static {
@@ -53,22 +54,21 @@ class Main {
         pumpForTitration = new ScadaLayers("src/main/resources/pump1Off.png", 0, 0, 400, 300);
         pumpForSolution = new ScadaLayers("src/main/resources/pump2Off.png", -6, 90, 400, 300);
         waterTube = new ScadaLayers("src/main/resources/Water.png", 4, 72, 140, 150);
-        valveTitrationClosed = new ScadaLayers("src/main/resources/valveClosed.png", 75, 88, 40, 40);
-        valveWaterOpened = new ScadaLayers("src/main/resources/valveOpened.png", 35, 122, 40, 40);
-        valveWaterClosed = new ScadaLayers("src/main/resources/valveClosed.png", 35, 122, 40, 40);
-        valveSolutionOpened = new ScadaLayers("src/main/resources/valveOpened.png", 75, 158, 40, 40);
-        valveSolutionClosed = new ScadaLayers("src/main/resources/valveClosed.png", 75, 158, 40, 40);
-        valveTitrationOpened = new ScadaLayers("src/main/resources/valveOpened.png", 75, 88, 40, 40);
-        valveOutClosed = new ScadaLayers("src/main/resources/valveClosed.png", 412, 302, 40, 40);
-        valveOutOpened = new ScadaLayers("src/main/resources/valveOpened.png", 412, 302, 40, 40);
+        valveWaterOpened = new ScadaLayers("src/main/resources/valveOpenedBlue.png", 35, 122, 40, 40);
+        valveWaterClosed = new ScadaLayers("src/main/resources/valveClosedBlue.png", 35, 122, 40, 40);
+        valveSolutionOpened = new ScadaLayers("src/main/resources/valveOpenedRed.png", 75, 158, 40, 40);
+        valveSolutionClosed = new ScadaLayers("src/main/resources/valveClosedRed.png", 75, 158, 40, 40);
+        valveTitrationOpened = new ScadaLayers("src/main/resources/valveOpenedRed.png", 75, 88, 40, 40);
+        valveTitrationClosed = new ScadaLayers("src/main/resources/valveClosedRed.png", 75, 88, 40, 40);
+        valveOutClosed = new ScadaLayers("src/main/resources/valveClosedBlue.png", 412, 302, 40, 40);
+        valveOutOpened = new ScadaLayers("src/main/resources/valveOpenedBlue.png", 412, 302, 40, 40);
     }
 
 
-
-    private static class ListeningThepH implements Runnable {
+    private static class ListeningThePh implements Runnable {
         public void run() {
             scannerFlag = true;
-            System.out.println("ListeningThepH is loaded");
+            System.out.println("ListeningThePh is loaded");
             log.append("Получаю данные...\n");
             Scanner scanner = new Scanner(InitialClass.arduino.getSerialPort().getInputStream());
             pushToArduino(SendTo.PH_METER_ON);
@@ -91,60 +91,68 @@ class Main {
     }
 
     private static class AutoTitration implements Runnable {
-        private double pH_limit = 1.3;
+        private double pH_limit = 2.3;
         @Override
         public void run() {
             try {
                 inProcess = true;
+
                 /*START adding the solution*/
+
                 pushToArduino(SendTo.VALVE_SOLUTION_ON);
 
                 pushToArduino(SendTo.PUMP_FOR_SOLUTION_ON);
-
-                while (solutionVolume <= 125.0) {
-                    Thread.sleep(1000);
-                    solutionVolume += 10.5;
-                }
+//                int i = 60 + 55;
+//                while (i > 0) {
+//                    Thread.sleep(1000);
+//                    solutionVolume += 0.869d;
+//                    i--;
+//                }
 
                 pushToArduino(SendTo.VALVE_SOLUTION_OFF);
                 pushToArduino(SendTo.PUMP_FOR_SOLUTION_OFF);
                 log.append("Раствор готов\n");
 
                 /*START adding the titration*/
+
                 pushToArduino(SendTo.MIXER_ON);
                 pushToArduino(SendTo.VALVE_TITRATION_ON);
                 log.append(" Добавление титранта..." + "\n");
                 new Chart();
-                pushToArduino(SendTo.PH_METER_ON);
                 new Thread(listeningThe_pH).start();
+                InitialClass.arduino.serialWrite('3');
+                pumpForTitrationOn.setVisible(true);
                 while (inProcess) {
                     //pump for titration
-                    pumpForTitrationOn.setVisible(true);
-                    InitialClass.arduino.serialWrite('3');
-                    titrationVolume += 0.06;
-                    solutionVolume += 0.06;
-                                              /*
+                    Thread.sleep(5000);
+                    titrationVolume += 1.65;
+                        /*
                         Time for sensor to set value
                         */
-                    Thread.sleep(1000);
                     try {
                         Double number = Double.parseDouble(line);
                         Chart.series.add(titrationVolume, (double) number);
-                        double y = (double) Chart.series.getY(Chart.series.getItemCount() - 1) - (double) Chart.series.getY(Chart.series.getItemCount() - 2);
-                        if (y < 0) y = -y;
-                        if (y > pH_limit) inProcess = false;
-                        Chart.secondSeries.add(titrationVolume, y);
+                        if(Chart.series.getItemCount() >= 2){
+                            double y = (double) Chart.series.getY(Chart.series.getItemCount() - 1) - (double) Chart.series.getY(Chart.series.getItemCount() - 2);
+                            if (y < 0) y = -y;
+                            if (titrationVolume > 10) inProcess = false;
+                            Chart.secondSeries.add(titrationVolume, y);
+                        } else {
+                            Chart.secondSeries.add(titrationVolume,0);
+                        }
+
                     } catch (IndexOutOfBoundsException | NumberFormatException e) {
                         e.getStackTrace();
                     }
-
                 }
-                System.out.println(Chart.secondSeries.getMaxY());
+
                 double[] peak = findPeaks(Chart.secondData_set, 0);
                 Chart.dot.add(Chart.series.getDataItem((int) peak[2]));
-                result.setText(peak[0] + "ml");
+                result.setText("Концентрация = " + calculateResult(peak[0]) + "%" + "\n" +"  Использовано титранта - " + titrationVolume+ "  Использовано раствора - " + solutionVolume);
 
                 pushToArduino(SendTo.MIXER_OFF);
+                pushToArduino(SendTo.PUMP_FOR_TITRATION_OFF);
+                pushToArduino(SendTo.VALVE_TITRATION_OFF);
 
                 scannerFlag = false;
                 visualPH.setText("_.__pH");
@@ -158,6 +166,10 @@ class Main {
             }
 
         }
+    }
+
+    private static float calculateResult(double peak) {
+        return (float)(.1d * peak / solutionVolume) * 100;
     }
 
     private static class ScadaLayers extends JLabel {
@@ -177,19 +189,27 @@ class Main {
         public void run() {
             try {
                 setNormalState();
+                pushToArduino(SendTo.VALVE_OUT_ON);
+                Thread.sleep(147000);
+                pushToArduino(SendTo.VALVE_OUT_OFF);
 
-                InitialClass.arduino.serialWrite("D9B7");
+
+                InitialClass.arduino.serialWrite("D735");
                 valveWaterOpened.setVisible(true);
                 pumpForSolutionOn.setVisible(true);
                 pumpForTitrationOn.setVisible(true);
                 mixerOn.setVisible(true);
 
-                Thread.sleep(8000);
+                Thread.sleep(10000);
 
                 valveWaterOpened.setVisible(false);
-                InitialClass.arduino.serialWrite("C1");
+                pumpForSolutionOn.setVisible(false);
+                pumpForTitrationOn.setVisible(false);
+                InitialClass.arduino.serialWrite("C124");
+                Thread.sleep(2000);
+                pushToArduino(SendTo.VALVE_OUT_ON);
 
-                Thread.sleep(8000);
+                Thread.sleep(15000);
 
                 setNormalState();
                 log.append("Промывка закончена" + "\n");
@@ -201,11 +221,13 @@ class Main {
 
     private static JToggleButton addToggle(String name, char whenOn, char whenOff, ScadaLayers on) {
         JToggleButton a = new JToggleButton(name);
+
 //        a.addContainerListener(e -> {
 //            if (handMode.getText().equals("Включен ручной режим !")) {
 //                a.setEnabled(true);
 //            } else a.setEnabled(false);
 //        });
+
         a.addItemListener(ev -> {
             if (ev.getStateChange() == ItemEvent.SELECTED) {
                 a.setText(name + " вкл");
@@ -253,13 +275,20 @@ class Main {
     }
 
     private static int y_FlaskLevel (double solutionVolume){
-        return (int) solutionVolume * (200 - 350) / 400 + 350;
+        if (solutionVolume == 0) return 366;
+        return (int) map(solutionVolume,0,150,366,199);
+
+    }
+    private static double map (double value, double fromSource, double toSource, double fromTarget, double toTarget)
+    {
+        return (value - fromSource) / (toSource - fromSource) * (toTarget - fromTarget) + fromTarget;
     }
 
     static void SetUpScadaAndControllers() {
         new Thread(() -> {
             while(true) {
-                flaskLevel.setBounds(225, y_FlaskLevel(solutionVolume), 200, 200);
+                int y = y_FlaskLevel(solutionVolume);
+                flaskLevel.setBounds(225, y, 200, 366 - y);
                 flaskLevel.revalidate();
                 try {
                     Thread.sleep(250);
@@ -268,9 +297,11 @@ class Main {
                 }
             }
         }).start();
+
         /*
          hide animated images of scada
-          */
+        */
+
         pumpForSolutionOn.setVisible(false);
         pumpForTitrationOn.setVisible(false);
         mixerOn.setVisible(false);
@@ -350,9 +381,6 @@ class Main {
             }
         });
 
-
-
-        flaskLevel.setBounds(225, 400, 200, 200);
         flaskLevel.setBackground(Color.orange);
 
         /*
@@ -379,8 +407,10 @@ class Main {
         scada.add(visualPH, Integer.valueOf(17));
 
         result.setPreferredSize(new Dimension(200, 50));
-        result.setText("0.00 ml");
-        result.setFont(new Font("Montserrat", Font.PLAIN, 32));
+//        result.setText("Концентрация");
+        result.setText(" Концентрация = " + "___%" + "\n" +"  Использовано титранта - " + titrationVolume+ "  Использовано раствора - " + solutionVolume);
+
+        result.setFont(new Font("Montserrat", Font.PLAIN, 22));
         result.setForeground(Color.WHITE);
 
         panelRightTop.setPreferredSize(new Dimension(200, 75));
@@ -405,7 +435,7 @@ class Main {
         panelRightBot.add(addToggle("Клапан для слива", '1', '0', valveOutOpened));
         panelRightBot.add(addToggle("Мешалка", '7', '6', mixerOn));
         panelRightBot.add(addToggle("Датчик", 'Y', 'X'));
-        panelRightBot.add(result);
+//        panelRightBot.add(result);
 
         panelRight.setLayout(new BorderLayout());
         panelRight.setPreferredSize(new Dimension(200, 400));
@@ -415,9 +445,23 @@ class Main {
 
         panel.setLayout(new BorderLayout());
         panel.setBackground(new Color(19, 28, 48));
-        panel.add(scada, BorderLayout.WEST);
+        panelLeft.setLayout(new BorderLayout());
+        panelLeft.setBackground(new Color(19, 28, 48));
+        panelLeft.add(scada, BorderLayout.EAST);
+        JLabel a = new JLabel("<html> <br><br><br>" +
+                " &nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp  H2O <br>" +
+                " &nbsp&nbsp&nbsp&nbsp&nbsp NaOH<br>" +
+                " &nbsp C2H2O4<br></html>");
+        a.setFont(new Font("Montserrat", Font.PLAIN, 26));
+        a.setForeground(Color.WHITE);
+        a.setVerticalAlignment(SwingConstants.NORTH);
+
+        panelLeft.add( a,BorderLayout.WEST);
+        panel.add(panelLeft, BorderLayout.WEST);
+//        panel.add(scada, BorderLayout.WEST);
         panel.add(panelRight, BorderLayout.CENTER);
         panel.add(log, BorderLayout.EAST);
+        panel.add(result, BorderLayout.SOUTH);
 
         panelRightTop.setLayout(new FlowLayout());
 
